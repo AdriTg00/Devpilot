@@ -1,9 +1,13 @@
 from app.tools.directory_reader import list_files
 from app.tools.file_reader import read_file
 from app.tools.code_analyzer import analyze_python_file
+from app.services.llm_service import LLMService
 
 
 class ProjectService:
+
+    def __init__(self):
+        self.llm = LLMService()
 
     def get_files(self, path: str):
         return list_files(path)
@@ -37,3 +41,9 @@ class ProjectService:
             "functions": total_functions,
             "classes": total_classes
         }
+
+    def summarize_project(self, path):
+
+        stats = self.analyze_project(path)
+
+        return self.llm.summarize_project(stats)

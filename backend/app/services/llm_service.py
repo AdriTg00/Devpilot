@@ -35,3 +35,18 @@ class LLMService:
         )
 
         return response["message"]["content"]
+    
+    def summarize_project(self, stats):
+
+        prompt = f"""
+        Analiza este proyecto:
+
+        Archivos Python: {stats['python_files']}
+        Líneas: {stats['lines']}
+        Funciones: {stats['functions']}
+        Clases: {stats['classes']}
+
+        Describe la arquitectura y posibles mejoras.
+        """
+
+        return self.ask(prompt)

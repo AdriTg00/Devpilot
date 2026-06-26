@@ -173,3 +173,6 @@ out/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# ChromaDB vector store
+.chroma/

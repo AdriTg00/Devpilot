@@ -74,20 +74,6 @@ Codigo del proyecto:
 {context}
 """
 
-ANSWER_QUESTION_PROMPT = """{language_instruction}
-Si te saludan o preguntan sobre ti, responde breve y amable (1-2 lineas).
-Para cualquier otra pregunta, actua como un arquitecto de software senior: respuesta tecnica, directa, sin opiniones. Basate solo en el codigo.
-
-Proyecto: {project_name}
-
-Codigo del proyecto:
-{context}
-
-Pregunta: {question}
-
-Reglas: no inventes archivos ni funciones. Si no hay datos suficientes, responde "No disponible".
-Respuesta:"""
-
 EXPLAIN_PROJECT_PROMPT = """
 {language_instruction}
 Analiza este proyecto / Analyze this project.
@@ -95,9 +81,8 @@ Analiza este proyecto / Analyze this project.
 Describe / Describe:
 
 - Arquitectura / Architecture
-- Responsabilidades de cada módulo / Module responsibilities
-- Organización del código / Code organization
-- Posibles mejoras / Potential improvements
+- Responsabilidades de cada modulo / Module responsibilities
+- Organización del codigo / Code organization
 
 Proyecto / Project:
 
@@ -176,11 +161,11 @@ SUMMARIZE_PROJECT_PROMPT = """
 Analiza este proyecto / Analyze this project:
 
 Archivos / Files: {files}
-Líneas de código / Lines of code: {lines}
+Líneas de codigo / Lines of code: {lines}
 Funciones / Functions: {functions}
 Clases e interfaces / Classes and interfaces: {classes}
 
-Describe la arquitectura general y sugiere posibles mejoras.
-Describe the overall architecture and suggest possible improvements.
+Describe la arquitectura general.
+Describe the overall architecture.
 """
 

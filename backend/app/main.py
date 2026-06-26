@@ -4,7 +4,6 @@ import logging
 # para garantizar que load_dotenv() se ejecuta y las variables de entorno
 # estan disponibles cuando LLMService y otros modulos las leen.
 from app.core.config import CORS_ORIGINS
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.chat import router as chat_router
@@ -32,4 +31,4 @@ app.add_middleware(
 
 app.include_router(chat_router)
 app.include_router(project_router)
-app.include_router(tools_router)
+app.include_router(tools_router)

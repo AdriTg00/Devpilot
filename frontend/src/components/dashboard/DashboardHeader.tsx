@@ -1,3 +1,6 @@
+import { useLanguage } from "../../contexts/LanguageContext";
+
 export default function Dashboard() {
-  return <h1 className="text-white">Dashboard</h1>;
+  const { t } = useLanguage();
+  return <h1 className="text-white">{t("dashboard.title")}</h1>;
 }

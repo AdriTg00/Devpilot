@@ -1,9 +1,14 @@
+import { useRef } from "react";
 import Button from "../ui/Button";
+import Input from "../ui/Input";
 import Card from "../ui/Card";
 
 import { useProject } from "../../contexts/ProjectContext";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function ProjectSelector() {
+  const { t } = useLanguage();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const {
     currentPath,
@@ -12,32 +17,46 @@ export default function ProjectSelector() {
     loading,
   } = useProject();
 
+  async function handleBrowse() {
+    if ("showDirectoryPicker" in window) {
+      try {
+        const handle = await (window as any).showDirectoryPicker();
+        setCurrentPath(handle.name);
+      } catch {
+        /* user cancelled */
+      }
+    } else {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }
+
   return (
     <Card>
 
       <h2 className="mb-6 text-xl font-semibold">
-        Analyze Project
+        {t("project.analyze_title")}
       </h2>
 
       <div className="flex gap-4">
 
-        <input
+        <Input
+          ref={inputRef}
           type="text"
           value={currentPath}
           onChange={(e) => setCurrentPath(e.target.value)}
-          placeholder="Select a project..."
-          className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white outline-none"
+          placeholder={t("project.path_placeholder")}
         />
 
-        <Button>
-          Browse
+        <Button onClick={handleBrowse}>
+          {t("project.browse")}
         </Button>
 
         <Button
           onClick={analyze}
           disabled={loading}
         >
-          {loading ? "Analyzing..." : "Analyze"}
+          {loading ? t("project.analyzing") : t("project.analyze")}
         </Button>
 
       </div>

@@ -5,7 +5,21 @@ Todos los prompts están centralizados aquí para facilitar su mantenimiento
 e iteración sin tocar la lógica de negocio de los servicios.
 """
 
+
+def language_instruction(language: str) -> str:
+    if language == "es":
+        return (
+            "IMPORTANTE: Responde EXCLUSIVAMENTE en español.\n"
+            "Todos los encabezados, explicaciones, análisis y secciones deben estar en español.\n"
+        )
+    return (
+        "IMPORTANT: Respond EXCLUSIVELY in English.\n"
+        "All headings, explanations, analysis and sections must be in English.\n"
+    )
+
+
 README_PROMPT = """
+{language_instruction}
 Eres un arquitecto software senior.
 
 Analiza EXCLUSIVAMENTE la información proporcionada.
@@ -21,103 +35,152 @@ Reglas obligatorias:
 - No inventes URLs.
 - No inventes repositorios GitHub.
 - No inventes endpoints.
-- No inventes comandos de instalación.
-- Si una información no aparece en el código, escribe:
-  "No disponible".
 - Basa todas las conclusiones únicamente en el código recibido.
+
+Para la seccion Instalacion / Installation:
+- Revisa los archivos de configuracion incluidos (package.json, requirements.txt, Cargo.toml, Gemfile, etc.)
+- Genera comandos de instalacion REALES basados en lo que detectes.
+- Si ves package.json, sugiere: npm install
+- Si ves requirements.txt, sugiere: pip install -r requirements.txt
+- Si ves Cargo.toml, sugiere: cargo build
+- Incluye los pasos para clonar (git clone <repo-url>) solo si la URL del repositorio esta visible en el codigo.
+- Si no encuentras ningun archivo de configuracion de paquetes, escribe:
+  "No disponible" / "Not available".
 
 Genera un README profesional en Markdown.
 
 Incluye:
 
-# Nombre del Proyecto
+# Nombre del Proyecto / Project Name
 
-## Descripción
+## Descripcion / Description
 
-## Características
+## Caracteristicas / Features
 
-## Arquitectura
+## Arquitectura / Architecture
 
-## Instalación
+## Instalacion / Installation
 
-## Uso
+## Uso / Usage
 
-## API
+## API / API
 
-## Tecnologías
+## Tecnologias / Technologies
 
-## Mejoras Futuras
+## Mejoras Futuras / Future Improvements
 
-Código del proyecto:
+Codigo del proyecto:
 
 {context}
 """
 
-ANSWER_QUESTION_PROMPT = """
-Eres un asistente experto en análisis de código.
+ANSWER_QUESTION_PROMPT = """{language_instruction}
+Si te saludan o preguntan sobre ti, responde breve y amable (1-2 lineas).
+Para cualquier otra pregunta, actua como un arquitecto de software senior: respuesta tecnica, directa, sin opiniones. Basate solo en el codigo.
 
-Proyecto:
-{project_name}
+Proyecto: {project_name}
 
-Código disponible:
-
+Codigo del proyecto:
 {context}
 
-Pregunta:
+Pregunta: {question}
 
-{question}
-
-Reglas:
-
-- Responde únicamente utilizando el código proporcionado.
-- No inventes archivos.
-- No inventes funciones.
-- No inventes clases.
-- Si la respuesta no puede deducirse del código disponible, responde:
-  "No puedo determinarlo con la información proporcionada."
-
-Respuesta:
-"""
+Reglas: no inventes archivos ni funciones. Si no hay datos suficientes, responde "No disponible".
+Respuesta:"""
 
 EXPLAIN_PROJECT_PROMPT = """
-Analiza este proyecto Python.
+{language_instruction}
+Analiza este proyecto / Analyze this project.
 
-Describe:
+Describe / Describe:
 
-- Arquitectura
-- Responsabilidades de cada módulo
-- Organización del código
-- Posibles mejoras
+- Arquitectura / Architecture
+- Responsabilidades de cada módulo / Module responsibilities
+- Organización del código / Code organization
+- Posibles mejoras / Potential improvements
 
-Proyecto:
+Proyecto / Project:
 
 {project_content}
 """
 
 EXPLAIN_FILE_PROMPT = """
-Eres un experto en análisis de código.
+{language_instruction}
+Eres un Staff Software Engineer realizando una revisión de código experta.
 
-Analiza el siguiente archivo: {file_name}
+El usuario YA está viendo el código fuente completo del archivo.
+NO repitas el código. NO copies fragmentos largos.
 
-Describe:
-- Propósito del archivo
-- Clases y funciones principales
-- Dependencias y acoplamiento
-- Posibles mejoras
+Reglas obligatorias:
+- NO inventes funcionalidades, clases, funciones ni módulos.
+- Basa todas las conclusiones únicamente en el código proporcionado.
+- Responde exclusivamente en Markdown usando la estructura indicada.
+- Preserva la estructura de secciones pero tradúcela al idioma indicado.
+- Sé técnico, específico y conciso.
+- Si no puedes determinar algo con certeza, indícalo explícitamente.
 
-Código:
+Archivo / File: {file_name}
+Proyecto / Project: {project_name}
+
+Código / Code:
 
 {content}
+
+Responde usando EXACTAMENTE esta estructura (traduciendo los encabezados al idioma indicado):
+
+# Purpose / Propósito
+
+Explica la responsabilidad principal del archivo en una frase clara. ¿Qué problema resuelve? ¿Por qué existe este archivo dentro del proyecto? Describe también cómo encaja en la arquitectura general.
+
+# Responsibilities / Responsabilidades
+
+Desglosa las responsabilidades concretas del archivo. ¿Qué tareas ejecuta? ¿Qué decisiones de diseño refleja? Identifica si sigue algún patrón (controlador, servicio, modelo, utilidad, middleware, etc.) y si sus responsabilidades están bien definidas o están mezcladas.
+
+# Key Components / Componentes Principales
+
+Enumera y explica las funciones, clases y símbolos principales:
+- ¿Cuál es su propósito específico?
+- ¿Cómo se relacionan entre sí dentro del archivo?
+- ¿Qué flujo de ejecución sigue el código?
+- Señala si algún componente es demasiado grande o hace demasiadas cosas.
+
+# Dependencies / Dependencias
+
+Analiza las importaciones y dependencias:
+- **Externas**: bibliotecas de terceros. ¿Están bien utilizadas?
+- **Internas**: cómo se conecta este archivo con el resto del proyecto.
+- ¿Hay dependencias circulares, innecesarias, mal ubicadas o que aumenten el acoplamiento sin beneficio claro?
+
+# Improvements / Mejoras
+
+Propón mejoras concretas y justificadas. Para cada una indica:
+- ¿Qué cambiar?
+- ¿Por qué? (legibilidad, rendimiento, mantenibilidad, testing, seguridad)
+- ¿Cómo impacta positivamente?
+
+Prioriza las mejoras por impacto. Si aplica, menciona patrones de diseño o refactors específicos.
+
+# Risks / Riesgos
+
+Identifica problemas potenciales:
+- Casos borde no manejados (archivos vacíos, valores None, input inválido, etc.)
+- Posibles excepciones o errores silenciosos
+- Seguridad: validación de entrada, path traversal, exposición de datos
+- Mantenibilidad: código frágil, acoplado, difícil de extender
+- Rendimiento: bucles innecesarios, operaciones costosas, falta de lazy loading
+- Si no detectas riesgos relevantes, escribe "No se observan riesgos relevantes." / "No relevant risks observed."
 """
 
 SUMMARIZE_PROJECT_PROMPT = """
-Analiza este proyecto:
+{language_instruction}
+Analiza este proyecto / Analyze this project:
 
-Archivos Python: {python_files}
-Líneas de código: {lines}
-Funciones: {functions}
-Clases: {classes}
+Archivos / Files: {files}
+Líneas de código / Lines of code: {lines}
+Funciones / Functions: {functions}
+Clases e interfaces / Classes and interfaces: {classes}
 
 Describe la arquitectura general y sugiere posibles mejoras.
+Describe the overall architecture and suggest possible improvements.
 """
 

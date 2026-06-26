@@ -1,7 +1,7 @@
 import Card from "../ui/Card";
 
 type Props = {
-  title: string;
+  title: React.ReactNode;
   value: string | number;
 };
 

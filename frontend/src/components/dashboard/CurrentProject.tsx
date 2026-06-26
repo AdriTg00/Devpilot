@@ -1,8 +1,9 @@
 import { useProject } from "../../contexts/ProjectContext";
+import { useLanguage } from "../../contexts/LanguageContext";
 import Card from "../ui/Card";
 
 export default function CurrentProject() {
-
+    const { t } = useLanguage();
     const { analysis } = useProject();
 
     if (!analysis)
@@ -13,7 +14,7 @@ export default function CurrentProject() {
         <Card>
 
             <p className="text-sm text-slate-400">
-                Current Project
+                {t("current_project.title")}
             </p>
 
             <h2 className="mt-2 text-2xl font-bold">

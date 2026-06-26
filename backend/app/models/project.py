@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 class ProjectRequest(BaseModel):
     path: str = Field(..., min_length=1, description="Ruta al proyecto o archivo")
+    language: str = Field(default="en", description="Idioma: en | es")
 
 
 class ProjectFile(BaseModel):
@@ -17,6 +18,7 @@ class ProjectResponse(BaseModel):
 class ProjectQuestionRequest(BaseModel):
     path: str = Field(..., min_length=1, description="Ruta al proyecto")
     question: str = Field(..., min_length=1, description="Pregunta sobre el proyecto")
+    language: str = Field(default="en", description="Idioma: en | es")
 
 
 class ReadmeResponse(BaseModel):

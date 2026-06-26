@@ -3,3 +3,5 @@ uvicorn
 pydantic
 ollama
 python-dotenv
+groq
+chromadb

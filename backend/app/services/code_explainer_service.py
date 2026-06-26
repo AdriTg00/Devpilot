@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from pathlib import Path
 
 from app.services.llm_service import get_llm_service
@@ -7,12 +7,26 @@ from app.tools.directory_reader import list_files
 from app.tools.file_writer import write_file
 from app.core.prompts import (
     README_PROMPT,
-    ANSWER_QUESTION_PROMPT,
     EXPLAIN_PROJECT_PROMPT,
     EXPLAIN_FILE_PROMPT,
+    language_instruction,
 )
 
 logger = logging.getLogger(__name__)
+
+
+MAX_FILE_CONTEXT = 1000
+
+_CONTEXT_EXTENSIONS = {
+    ".py", ".ts", ".tsx", ".js", ".jsx",
+    ".html", ".css", ".json", ".toml",
+    ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hh", ".hxx",
+    ".java", ".cs", ".go", ".rs", ".php", ".rb", ".swift",
+    ".kt", ".kts", ".scala", ".dart",
+}
+_MANIFEST_FILES = {"requirements.txt", "Gemfile", "Makefile", "Dockerfile", "docker-compose.yml", "composer.json", "go.mod"}
+
+_explanation_cache: dict[str, str] = {}
 
 
 class CodeExplainerService:
@@ -32,12 +46,22 @@ class CodeExplainerService:
         project_name = Path(path).name
         context = ""
 
+        # Build a compact directory tree first
+        tree_lines = []
+        for f in files:
+            rel = Path(f).relative_to(path)
+            tree_lines.append(str(rel.as_posix()))
+        tree = "\n".join(sorted(tree_lines))
+        context += f"ESTRUCTURA DEL PROYECTO:\n{tree}\n\n"
+
         for file in files:
-            if not file.endswith(".py"):
+            ext = Path(file).suffix.lower()
+            name = Path(file).name
+            if ext not in _CONTEXT_EXTENSIONS and name not in _MANIFEST_FILES:
                 continue
             try:
                 content = read_file(file)
-                context += f"\nARCHIVO:\n{file}\n\nCODIGO:\n{content[:max_chars]}\n"
+                context += f"--- {file} ---\n{content[:max_chars]}\n"
             except Exception as e:
                 logger.warning(f"No se pudo leer el archivo {file}: {e}")
                 continue
@@ -46,43 +70,138 @@ class CodeExplainerService:
 
         return project_name, context
 
-    def generate_readme(self, project_path: str) -> dict:
-        documentation = self.generate_documentation(project_path)
+    def generate_readme(self, project_path: str, language: str = "en") -> dict:
+        documentation = self.generate_documentation(project_path, language)
         readme_path = Path(project_path) / "README.md"
         already_existed = readme_path.exists()
         write_file(str(readme_path), documentation)
         return {"readme_path": str(readme_path), "already_existed": already_existed}
 
-    def generate_documentation(self, project_path: str) -> str:
+    def _build_doc_prompt(self, project_path: str, language: str) -> str:
         project_name, context = self._build_context(
             project_path, max_chars=1000, max_total=10000
         )
-        prompt = README_PROMPT.format(project_name=project_name, context=context)
-        return self.llm.ask(prompt)
-
-    def answer_question(self, project_path: str, question: str) -> str:
-        project_name, context = self._build_context(
-            project_path, max_chars=1000, max_total=8000
-        )
-        prompt = ANSWER_QUESTION_PROMPT.format(
+        return README_PROMPT.format(
+            language_instruction=language_instruction(language),
             project_name=project_name,
             context=context,
-            question=question,
         )
+
+    def generate_documentation(self, project_path: str, language: str = "en") -> str:
+        prompt = self._build_doc_prompt(project_path, language)
         return self.llm.ask(prompt)
 
-    def explain_project(self, path: str) -> str:
+    def generate_documentation_stream(self, project_path: str, language: str = "en"):
+        prompt = self._build_doc_prompt(project_path, language)
+        yield "\n"
+        yield from self.llm.ask_stream(prompt)
+
+    def answer_question(self, project_path: str, question: str, language: str = "en", history: str = "", rag_context: str = "") -> str:
+        project_name, context = self._build_context(
+            project_path, max_chars=300, max_total=1500
+        )
+        system = language_instruction(language)
+        system += (
+            "Eres un analizador de codigo. Reglas:\n"
+            "1. Si te saludan, responde solo con un saludo (1 linea).\n"
+            "2. Para preguntas sobre el proyecto: busca la respuesta en el contexto de codigo proporcionado.\n"
+            "   - Preguntas sobre 'endpoints' o 'rutas': busca decoradores @router.get, @router.post, @app.get, @app.post en los archivos de rutas.\n"
+            "   - Preguntas sobre 'componentes' o 'paginas': busca archivos .tsx .jsx en frontend/src.\n"
+            "   - Preguntas generales: responde solo con datos objetivos extraidos del codigo.\n"
+            "3. NO des opiniones, analisis, mejoras, sugerencias ni documentacion.\n"
+            "4. Si no hay suficiente informacion en el contexto, responde 'No disponible'."
+        )
+        user = f"Pregunta sobre el proyecto {project_name}: {question}"
+        if history:
+            user += f"\n\nHistorial de la conversacion:\n{history}"
+        if rag_context:
+            user += f"\n\nCodigo relevante (de RAG):\n{rag_context}"
+        if context.strip():
+            user += f"\n\nArchivos del proyecto (para referencia):\n{context}"
+        return self.llm.ask_with_system(system, user)
+
+    def answer_question_stream(self, project_path: str, question: str, language: str = "en", history: str = "", rag_context: str = ""):
+        project_name, context = self._build_context(
+            project_path, max_chars=300, max_total=1500
+        )
+        system = language_instruction(language)
+        system += (
+            "Eres un analizador de codigo. Reglas:\n"
+            "1. Si te saludan, responde solo con un saludo (1 linea).\n"
+            "2. Para preguntas sobre el proyecto: busca la respuesta en el contexto de codigo proporcionado.\n"
+            "   - Preguntas sobre 'endpoints' o 'rutas': busca decoradores @router.get, @router.post, @app.get, @app.post en los archivos de rutas.\n"
+            "   - Preguntas sobre 'componentes' o 'paginas': busca archivos .tsx .jsx en frontend/src.\n"
+            "   - Preguntas generales: responde solo con datos objetivos extraidos del codigo.\n"
+            "3. NO des opiniones, analisis, mejoras, sugerencias ni documentacion.\n"
+            "4. Si no hay suficiente informacion en el contexto, responde 'No disponible'."
+        )
+        user = f"Pregunta sobre el proyecto {project_name}: {question}"
+        if history:
+            user += f"\n\nHistorial de la conversacion:\n{history}"
+        if rag_context:
+            user += f"\n\nCodigo relevante (de RAG):\n{rag_context}"
+        if context.strip():
+            user += f"\n\nArchivos del proyecto (para referencia):\n{context}"
+        yield "\n"
+        yield from self.llm.ask_with_system_stream(system, user)
+
+    def _build_explain_project_prompt(self, path: str, language: str) -> str:
         _, project_content = self._build_context(path, max_chars=3000, max_total=15000)
-        prompt = EXPLAIN_PROJECT_PROMPT.format(project_content=project_content)
+        return EXPLAIN_PROJECT_PROMPT.format(
+            language_instruction=language_instruction(language),
+            project_content=project_content,
+        )
+
+    def explain_project(self, path: str, language: str = "en") -> str:
+        prompt = self._build_explain_project_prompt(path, language)
         return self.llm.ask(prompt)
 
-    def explain_file(self, path: str) -> str:
-        """Explica el contenido de un unico archivo de codigo."""
-        try:
-            content = read_file(path)
-        except Exception as e:
-            logger.error(f"No se pudo leer el archivo {path}: {e}")
-            raise
+    def explain_project_stream(self, path: str, language: str = "en"):
+        prompt = self._build_explain_project_prompt(path, language)
+        yield "\n"
+        yield from self.llm.ask_stream(prompt)
+
+    def explain_file(self, path: str, language: str = "en") -> str:
+        cache_key = f"{path}:{language}"
+        if cache_key in _explanation_cache:
+            return _explanation_cache[cache_key]
+
+        content = read_file(path)
         file_name = Path(path).name
-        prompt = EXPLAIN_FILE_PROMPT.format(file_name=file_name, content=content[:5000])
-        return self.llm.ask(prompt)
+        project_name = Path(path).parent.name
+
+        prompt = EXPLAIN_FILE_PROMPT.format(
+            language_instruction=language_instruction(language),
+            file_name=file_name,
+            project_name=project_name,
+            content=content[:MAX_FILE_CONTEXT],
+        )
+
+        explanation = self.llm.ask(prompt)
+        _explanation_cache[cache_key] = explanation
+
+        return explanation
+
+    def explain_file_stream(self, path: str, language: str = "en"):
+        cache_key = f"{path}:{language}"
+        if cache_key in _explanation_cache:
+            yield _explanation_cache[cache_key]
+            return
+
+        content = read_file(path)
+        file_name = Path(path).name
+        project_name = Path(path).parent.name
+
+        prompt = EXPLAIN_FILE_PROMPT.format(
+            language_instruction=language_instruction(language),
+            file_name=file_name,
+            project_name=project_name,
+            content=content[:MAX_FILE_CONTEXT],
+        )
+
+        full = ""
+        for token in self.llm.ask_stream(prompt):
+            full += token
+            yield token
+
+        _explanation_cache[cache_key] = full

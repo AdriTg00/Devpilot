@@ -1,24 +1,12 @@
 from fastapi import APIRouter
 
-from app.models.chat import (
-    ChatRequest,
-    ChatResponse
-)
+from app.models.chat import ChatRequest, ChatResponse
+from app.services.llm_service import get_llm_service
 
-from app.services.llm_service import (
-    LLMService
-)
-
-router = APIRouter()
-
-llm = LLMService()
+router = APIRouter(tags=["chat"])
 
 
-@router.post("/chat")
+@router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
-
-    answer = llm.ask(request.message)
-
-    return ChatResponse(
-        response=answer
-    )
+    answer = get_llm_service().ask(request.message)
+    return ChatResponse(response=answer)

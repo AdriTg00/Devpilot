@@ -1,5 +1,7 @@
 # DevPilot AI
 
+Encender backend: uvicorn app.main:app --reload
+
 ## Descripción
 DevPilot AI es una aplicación que ofrece herramientas inteligentes para el desarrollo de software. La plataforma incluye funcionalidades para chat interactivo con IA, análisis y generación de documentación de proyectos, así como explicación de archivos de código.
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import {
@@ -6,7 +7,13 @@ import {
   streamExplainProject,
 } from "../../services/projectService";
 import Card from "../ui/Card";
+import Button from "../ui/Button";
 import TypingEffect from "../ui/TypingEffect";
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+};
 
 export default function ProjectActions() {
   const { currentPath, analysis } = useProject();
@@ -51,37 +58,53 @@ export default function ProjectActions() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-4">
-        <button
-          onClick={handleSummary}
-          disabled={summaryLoading}
-          className="rounded-lg bg-emerald-600 px-5 py-2.5 font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
-        >
-          {summaryLoading ? "Summarizing..." : "AI Summary"}
-        </button>
+      <div className="flex flex-wrap gap-4">
+        <Button onClick={handleSummary} loading={summaryLoading}>
+          AI Summary
+        </Button>
 
-        <button
-          onClick={handleExplain}
-          disabled={explainLoading}
-          className="rounded-lg bg-slate-700 px-5 py-2.5 font-medium text-white transition hover:bg-slate-600 disabled:opacity-50"
-        >
-          {explainLoading ? "Explaining..." : "Explain Project"}
-        </button>
+        <Button onClick={handleExplain} loading={explainLoading} variant="secondary">
+          Explain Project
+        </Button>
       </div>
 
-      {(summaryLoading || summary) && (
-        <Card>
-          <h3 className="mb-3 text-lg font-semibold">Project Summary</h3>
-          <TypingEffect text={summary} loading={summaryLoading} />
-        </Card>
-      )}
+      <AnimatePresence mode="wait">
+        {(summaryLoading || summary) && (
+          <motion.div
+            key="summary"
+            variants={fadeUp}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card>
+              <h3 className="mb-3 text-lg font-semibold">Project Summary</h3>
+              <div className="max-h-80 overflow-y-auto">
+                <TypingEffect text={summary} loading={summaryLoading} />
+              </div>
+            </Card>
+          </motion.div>
+        )}
 
-      {(explainLoading || explanation) && (
-        <Card>
-          <h3 className="mb-3 text-lg font-semibold">Project Analysis</h3>
-          <TypingEffect text={explanation} loading={explainLoading} />
-        </Card>
-      )}
+        {(explainLoading || explanation) && (
+          <motion.div
+            key="explain"
+            variants={fadeUp}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card>
+              <h3 className="mb-3 text-lg font-semibold">Project Analysis</h3>
+              <div className="max-h-80 overflow-y-auto">
+                <TypingEffect text={explanation} loading={explainLoading} />
+              </div>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

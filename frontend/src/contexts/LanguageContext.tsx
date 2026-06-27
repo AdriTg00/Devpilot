@@ -5,7 +5,7 @@ type Language = "en" | "es";
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -16,7 +16,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const value: LanguageContextType = {
     language,
     setLanguage,
-    t: (key: string) => translations[language]?.[key] ?? translations.en?.[key] ?? key,
+    t: (key: string, params?: Record<string, string | number>) => {
+      let text = translations[language]?.[key] ?? translations.en?.[key] ?? key;
+      if (params) {
+        for (const [k, v] of Object.entries(params)) {
+          text = text.replace(`{${k}}`, String(v));
+        }
+      }
+      return text;
+    },
   };
 
   return (
@@ -44,6 +52,23 @@ const translations: Record<Language, Record<string, string>> = {
     "settings.title": "Settings",
     "settings.language": "Language",
     "settings.language_label": "Select your preferred language",
+    "settings.provider": "Provider",
+    "settings.provider_label": "Choose which LLM backend to use",
+    "settings.ollama_model": "Ollama Model",
+    "settings.groq_model": "Groq Model",
+    "settings.ollama_url": "Ollama Base URL",
+    "settings.generation": "Generation",
+    "settings.temperature": "Temperature",
+    "settings.max_tokens": "Max Tokens",
+    "settings.save": "Save Settings",
+    "settings.saved": "Settings saved",
+    "settings.save_error": "Failed to save settings",
+    "settings.rag": "RAG",
+    "settings.rag_desc": "Semantic code chunking for vector search",
+    "settings.rag_chunk_lines": "Chunk Lines",
+    "settings.rag_overlap": "Overlap Lines",
+    "settings.rag_max_chunks": "Max Chunks per File",
+    "settings.rag_max_results": "Max Search Results",
     "project.title": "Project",
     "doc.title": "Documentation",
     "dashboard.title": "Dashboard",
@@ -63,6 +88,7 @@ const translations: Record<Language, Record<string, string>> = {
     "stats.classes": "Classes",
     "stats.files_line": "{files} files, {lines} lines",
     "explorer.title": "Project Explorer",
+    "explorer.search": "Search files...",
     "explorer.empty": "Analyze a project to display its files.",
     "chat.title": "Project Chat",
     "chat.no_project": "Open a project from the Dashboard first to start asking questions.",
@@ -72,6 +98,7 @@ const translations: Record<Language, Record<string, string>> = {
     "chat.thinking": "Thinking...",
     "chat.empty": "Ask anything about your project — architecture, dependencies, how to add features, etc.",
     "chat.error": "Error: Unable to get an answer.",
+    "chat.clear": "Clear history",
     "project.select": "Select Project",
     "project.analyze": "Analyze",
     "project.analyzing": "Analyzing...",
@@ -82,6 +109,14 @@ const translations: Record<Language, Record<string, string>> = {
     "current_project.no_project": "No project selected",
     "recent.title": "Recent Projects",
     "recent.empty": "No projects analyzed yet.",
+    "rag.ready": "RAG Active",
+    "rag.not_ready": "RAG Unavailable",
+    "rag.chunks": "{chunks} chunks indexed",
+    "rag.project_chunks": "{chunks} for this project",
+    "rag.rebuild": "Rebuild Index",
+    "rag.clear": "Clear Index",
+    "rag.chunk_lines": "Chunk size: {n} lines",
+    "rag.overlap": "Overlap: {n} lines",
     "lang.en": "English",
     "lang.es": "Spanish",
   },
@@ -96,6 +131,23 @@ const translations: Record<Language, Record<string, string>> = {
     "settings.title": "Configuración",
     "settings.language": "Idioma",
     "settings.language_label": "Selecciona tu idioma preferido",
+    "settings.provider": "Proveedor",
+    "settings.provider_label": "Elige qué backend LLM usar",
+    "settings.ollama_model": "Modelo Ollama",
+    "settings.groq_model": "Modelo Groq",
+    "settings.ollama_url": "URL Base Ollama",
+    "settings.generation": "Generación",
+    "settings.temperature": "Temperatura",
+    "settings.max_tokens": "Máx. Tokens",
+    "settings.save": "Guardar Cambios",
+    "settings.saved": "Configuración guardada",
+    "settings.save_error": "Error al guardar configuración",
+    "settings.rag": "RAG",
+    "settings.rag_desc": "Fragmentación semántica de código para búsqueda vectorial",
+    "settings.rag_chunk_lines": "Líneas por Fragmento",
+    "settings.rag_overlap": "Líneas de Solapamiento",
+    "settings.rag_max_chunks": "Máx. Fragmentos por Archivo",
+    "settings.rag_max_results": "Máx. Resultados de Búsqueda",
     "project.title": "Proyecto",
     "doc.title": "Documentación",
     "dashboard.title": "Dashboard",
@@ -115,6 +167,7 @@ const translations: Record<Language, Record<string, string>> = {
     "stats.classes": "Clases",
     "stats.files_line": "{files} arch., {lines} líneas",
     "explorer.title": "Explorador de Archivos",
+    "explorer.search": "Buscar archivos...",
     "explorer.empty": "Analiza un proyecto para ver sus archivos.",
     "chat.title": "Chat del Proyecto",
     "chat.no_project": "Abre un proyecto desde el Dashboard primero para hacer preguntas.",
@@ -124,6 +177,7 @@ const translations: Record<Language, Record<string, string>> = {
     "chat.thinking": "Pensando...",
     "chat.empty": "Pregunta cualquier cosa sobre tu proyecto — arquitectura, dependencias, cómo añadir funciones, etc.",
     "chat.error": "Error: No se pudo obtener una respuesta.",
+    "chat.clear": "Limpiar historial",
     "project.select": "Seleccionar Proyecto",
     "project.analyze": "Analizar",
     "project.analyzing": "Analizando...",
@@ -134,6 +188,14 @@ const translations: Record<Language, Record<string, string>> = {
     "current_project.no_project": "Ningún proyecto seleccionado",
     "recent.title": "Proyectos Recientes",
     "recent.empty": "Aún no se analizaron proyectos.",
+    "rag.ready": "RAG Activo",
+    "rag.not_ready": "RAG No Disponible",
+    "rag.chunks": "{chunks} fragmentos indexados",
+    "rag.project_chunks": "{chunks} para este proyecto",
+    "rag.rebuild": "Reconstruir Índice",
+    "rag.clear": "Limpiar Índice",
+    "rag.chunk_lines": "Tamaño: {n} líneas",
+    "rag.overlap": "Solapamiento: {n} líneas",
     "lang.en": "Inglés",
     "lang.es": "Español",
   },

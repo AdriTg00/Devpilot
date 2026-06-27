@@ -1,7 +1,10 @@
+import Spinner from "./Spinner";
+
 type ButtonVariant = "primary" | "secondary" | "danger";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
+  loading?: boolean;
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -13,24 +16,18 @@ const variantClasses: Record<ButtonVariant, string> = {
 export default function Button({
   children,
   variant = "primary",
+  loading = false,
   className = "",
+  disabled,
   ...props
 }: ButtonProps) {
   return (
     <button
-      className={`
-        rounded-xl
-        px-5
-        py-3
-        font-medium
-        text-white
-        transition
-        disabled:opacity-50
-        ${variantClasses[variant]}
-        ${className}
-      `}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-medium text-white transition disabled:opacity-50 ${variantClasses[variant]} ${className}`}
+      disabled={disabled || loading}
       {...props}
     >
+      {loading && <Spinner size="sm" />}
       {children}
     </button>
   );

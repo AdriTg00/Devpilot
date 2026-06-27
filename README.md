@@ -1,50 +1,95 @@
-# DevPilot AI
+**Project Analysis**
 
-Encender backend: uvicorn app.main:app --reload
+**Project Name:** Devpilot
+
+**Description:** Devpilot es una herramienta de desarrollo de software con IA local que proporciona herramientas inteligentes para el desarrollo de software.
+
+**Features:**
+
+* Chat integrado para obtener ayuda y asistencia en el desarrollo de software.
+* Gestión de proyectos para organizar y administrar proyectos de desarrollo de software.
+* Configuración de ajustes para personalizar la experiencia de usuario.
+* Integración con LLM (Large Language Model) para obtener respuestas y asistencia en tiempo real.
+
+**Architecture:**
+
+* Backend: Desarrollado con FastAPI y Python, utilizando la biblioteca ollama para integración con LLM.
+* Frontend: Desarrollado con React y TypeScript, utilizando la biblioteca vite para crear una aplicación de escritorio.
+* Base de datos: No se encuentra información sobre la base de datos utilizada en el proyecto.
+
+**Instalación:**
+
+Para instalar el proyecto, se requiere ejecutar los siguientes comandos:
+
+* `pip install -r backend/requirements.txt` para instalar las dependencias del backend.
+* `npm install` para instalar las dependencias del frontend.
+* `docker-compose up` para ejecutar el contenedor de Docker.
+
+**Uso:**
+
+Para utilizar el proyecto, se requiere ejecutar el comando `docker-compose up` y acceder a la aplicación a través del navegador en la dirección `http://localhost:80`.
+
+**API:**
+
+La API del proyecto se encuentra definida en el archivo `backend/app/api/chat.py`, `backend/app/api/projects.py` y `backend/app/api/settings.py`.
+
+**Tecnologías:**
+
+* Backend: FastAPI, Python, ollama, groq, chromadb.
+* Frontend: React, TypeScript, vite.
+* Base de datos: No se encuentra información sobre la base de datos utilizada en el proyecto.
+
+**Mejoras Futuras:**
+
+* Implementar autenticación y autorización para proteger la API.
+* Agregar más funcionalidades a la herramienta de desarrollo de software.
+* Mejorar la experiencia de usuario y la interfaz de usuario.
+
+**README Profesional en Markdown:**
+
+# Devpilot
 
 ## Descripción
-DevPilot AI es una aplicación que ofrece herramientas inteligentes para el desarrollo de software. La plataforma incluye funcionalidades para chat interactivo con IA, análisis y generación de documentación de proyectos, así como explicación de archivos de código.
+
+Devpilot es una herramienta de desarrollo de software con IA local que proporciona herramientas inteligentes para el desarrollo de software.
 
 ## Características
-- **Chat Interactivo:** Permite realizar preguntas a un asistente de IA.
-- **Análisis de Proyectos:** Proporciona resúmenes, estadísticas y análisis detallados de los proyectos de software.
-- **Generación de Documentación Automática:** Crea automáticamente READMEs para proyectos basados en su contenido.
+
+* Chat integrado para obtener ayuda y asistencia en el desarrollo de software.
+* Gestión de proyectos para organizar y administrar proyectos de desarrollo de software.
+* Configuración de ajustes para personalizar la experiencia de usuario.
+* Integración con LLM (Large Language Model) para obtener respuestas y asistencia en tiempo real.
 
 ## Arquitectura
-La arquitectura está basada en FastAPI, que permite la creación rápida y sencilla de APIs RESTful. Se utiliza una estructura de módulos separada para el backend (`app`), donde cada servicio y modelo tiene su propio archivo.
+
+* Backend: Desarrollado con FastAPI y Python, utilizando la biblioteca ollama para integración con LLM.
+* Frontend: Desarrollado con React y TypeScript, utilizando la biblioteca vite para crear una aplicación de escritorio.
+* Base de datos: No se encuentra información sobre la base de datos utilizada en el proyecto.
 
 ## Instalación
-No disponible.
+
+Para instalar el proyecto, se requiere ejecutar los siguientes comandos:
+
+* `pip install -r backend/requirements.txt` para instalar las dependencias del backend.
+* `npm install` para instalar las dependencias del frontend.
+* `docker-compose up` para ejecutar el contenedor de Docker.
 
 ## Uso
-Para usar DevPilot AI, simplemente realiza solicitudes POST a los endpoints correspondientes según las características descritas. Por ejemplo:
 
-- **Chat Interactivo:**
-  ```bash
-  curl -X POST "http://localhost:8000/chat" -H "Content-Type: application/json" -d '{"message": "¿Cómo funciona FastAPI?"}'
-  ```
-
-- **Análisis de Proyectos:**
-  ```bash
-  curl -X POST "http://localhost:8000/project/files" -H "Content-Type: application/json" -d '{"path": "/ruta/a/tu/proyecto"}'
-  curl -X POST "http://localhost:8000/project/analyze" -H "Content-Type: application/json" -d '{"path": "/ruta/a/tu/proyecto"}'
-  curl -X POST "http://localhost:8000/project/summary" -H "Content-Type: application/json" -d '{"path": "/ruta/a/tu/proyecto"}'
-  ```
+Para utilizar el proyecto, se requiere ejecutar el comando `docker-compose up` y acceder a la aplicación a través del navegador en la dirección `http://localhost:80`.
 
 ## API
-Las APIs disponibles en DevPilot AI se documentan a través de Swagger UI. Puedes acceder a la documentación interactiva en:
-```
-http://localhost:8000/docs
-```
+
+La API del proyecto se encuentra definida en el archivo `backend/app/api/chat.py`, `backend/app/api/projects.py` y `backend/app/api/settings.py`.
 
 ## Tecnologías
-- **FastAPI:** Framework para la creación de APIs RESTful.
-- **Python:** Lenguaje de programación principal.
-- **Pydantic:** Para el manejo de modelos de datos.
-- **ollama:** Biblioteca para interactuar con modelos de lenguaje.
-- **pathlib:** Para operaciones de sistema de archivos.
+
+* Backend: FastAPI, Python, ollama, groq, chromadb.
+* Frontend: React, TypeScript, vite.
+* Base de datos: No se encuentra información sobre la base de datos utilizada en el proyecto.
 
 ## Mejoras Futuras
-- **Experiencia del Usuario:** Mejorar la interactividad y la retroalimentación del usuario.
-- **Escalabilidad:** Optimizar el rendimiento y la capacidad de manejo de carga.
-- **Integración con Herramientas Externas:** Ampliar la funcionalidad mediante integraciones adicionales, como versionadores de código o sistemas de control de calidad.
+
+* Implementar autenticación y autorización para proteger la API.
+* Agregar más funcionalidades a la herramienta de desarrollo de software.
+* Mejorar la experiencia de usuario y la interfaz de usuario.

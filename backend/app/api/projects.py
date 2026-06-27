@@ -9,6 +9,9 @@ from app.models.project import (
     FileContentResponse,
     ProjectQuestionRequest,
     ReadmeResponse,
+    RAGStatusResponse,
+    RAGReindexRequest,
+    RAGClearRequest,
 )
 from app.services.project_service import ProjectService
 from app.services.code_explainer_service import CodeExplainerService
@@ -127,3 +130,23 @@ def generate_readme(request: ProjectRequest):
 def read_file(request: FileRequest):
     validate_file_path(request.path)
     return service.get_file_content(request.path)
+
+
+@router.get("/rag-status", response_model=RAGStatusResponse)
+def get_rag_status(path: str | None = None):
+    return RAGStatusResponse(**rag_service.status(project=path))
+
+
+@router.post("/rag-reindex")
+def reindex_project(request: RAGReindexRequest):
+    validate_directory(request.path)
+    files = request.files or [f["path"] for f in service.get_files(request.path)]
+    rag_service.index_project(request.path, files)
+    return {"message": f"Reindexed {len(files)} files for {request.path}", "files": len(files)}
+
+
+@router.delete("/rag-clear")
+def clear_rag_index(request: RAGClearRequest):
+    validate_directory(request.path)
+    rag_service.clear_project(request.path)
+    return {"message": f"Cleared RAG index for {request.path}"}

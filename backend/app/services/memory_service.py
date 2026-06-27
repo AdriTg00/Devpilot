@@ -1,5 +1,8 @@
-﻿import logging
-from collections import OrderedDict
+﻿import json
+import logging
+import os
+import tempfile
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -8,8 +11,43 @@ MAX_HISTORY_CHARS = 4000
 
 
 class MemoryService:
-    def __init__(self):
-        self._stores: dict[str, OrderedDict] = {}
+    def __init__(self, storage_path: str = ""):
+        self._storage_path = storage_path
+        self._stores: dict[str, list[dict]] = {}
+        self._load()
+
+    def _load(self):
+        if not self._storage_path:
+            return
+        path = Path(self._storage_path)
+        if not path.exists():
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self._stores = {
+                k: v[-MAX_HISTORY_PER_KEY:]
+                for k, v in data.items()
+                if isinstance(v, list)
+            }
+            logger.info("Memory loaded from %s (%d keys)", path, len(self._stores))
+        except Exception as exc:
+            logger.warning("Could not load memory from %s: %s", path, exc)
+            self._stores = {}
+
+    def _save(self):
+        if not self._storage_path:
+            return
+        path = Path(self._storage_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(suffix=".json", dir=path.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(self._stores, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, path)
+        except Exception:
+            os.unlink(tmp)
+            raise
 
     def _get_or_create(self, key: str) -> list[dict]:
         if key not in self._stores:
@@ -21,6 +59,7 @@ class MemoryService:
         history.append({"role": role, "content": content})
         if len(history) > MAX_HISTORY_PER_KEY:
             history.pop(0)
+        self._save()
 
     def get_history(self, key: str) -> list[dict]:
         return self._get_or_create(key)
@@ -41,6 +80,15 @@ class MemoryService:
 
     def clear(self, key: str):
         self._stores.pop(key, None)
+        self._save()
 
 
-memory_service = MemoryService()
+def _get_storage_path() -> str:
+    try:
+        from app.core.config import MEMORY_STORAGE_PATH
+        return MEMORY_STORAGE_PATH
+    except ImportError:
+        return ""
+
+
+memory_service = MemoryService(storage_path=_get_storage_path())

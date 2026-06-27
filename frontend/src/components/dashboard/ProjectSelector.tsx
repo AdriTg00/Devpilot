@@ -67,7 +67,7 @@ export default function ProjectSelector() {
             : "border-slate-700"
         }`}
       >
-        <div className="flex gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row">
           <Input
             ref={inputRef}
             type="text"
@@ -82,7 +82,7 @@ export default function ProjectSelector() {
 
           <Button
             onClick={analyze}
-            disabled={loading}
+            loading={loading}
           >
             {loading ? t("project.analyzing") : t("project.analyze")}
           </Button>

@@ -1,8 +1,8 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import MainLayout from "../layouts/MainLayout";
+import ErrorBoundary from "../components/error/ErrorBoundary";
 
-import Dashboard from "../pages/Dashboard/Dashboard";
 import Chat from "../pages/Chat/Chat";
 import Project from "../pages/Project/Project";
 import Documentation from "../pages/Documentation/Documentation";
@@ -15,23 +15,23 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Dashboard />
+        element: <Navigate to="/project" replace />
       },
       {
         path: "project",
-        element: <Project />
+        element: <ErrorBoundary><Project /></ErrorBoundary>
       },
       {
         path: "chat",
-        element: <Chat />
+        element: <ErrorBoundary><Chat /></ErrorBoundary>
       },
       {
         path: "documentation",
-        element: <Documentation />
+        element: <ErrorBoundary><Documentation /></ErrorBoundary>
       },
       {
         path: "settings",
-        element: <Settings />
+        element: <ErrorBoundary><Settings /></ErrorBoundary>
       }
     ]
   }

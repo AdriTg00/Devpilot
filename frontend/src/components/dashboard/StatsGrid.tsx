@@ -22,37 +22,38 @@ const EXT_VARIANTS: Record<string, "emerald" | "slate" | "amber"> = {
 
 export default function StatsGrid() {
   const { t } = useLanguage();
-  const { analysis } = useProject();
+  const { analysis, loading } = useProject();
+  const dash = analysis ? undefined : (loading ? "..." : "—");
 
   return (
     <div className="space-y-6">
 
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
 
         <StatCard
           title={t("stats.total_files")}
-          value={analysis?.files ?? 0}
+          value={analysis?.files ?? dash ?? 0}
         />
 
         <StatCard
           title={t("stats.lines")}
-          value={analysis?.lines ?? 0}
+          value={analysis?.lines ?? dash ?? 0}
         />
 
         <StatCard
           title={t("stats.functions")}
-          value={analysis?.functions ?? 0}
+          value={analysis?.functions ?? dash ?? 0}
         />
 
         <StatCard
           title={t("stats.classes")}
-          value={analysis?.classes ?? 0}
+          value={analysis?.classes ?? dash ?? 0}
         />
 
       </div>
 
       {analysis?.by_type && (
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
           {Object.entries(analysis.by_type).map(([ext, stats]) => (
             <StatCard
               key={ext}

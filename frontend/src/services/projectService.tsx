@@ -2,6 +2,9 @@ import { api } from "./api";
 import type { ProjectAnalysis } from "../types/Project";
 import type { ProjectFile } from "../types/Files";
 
+const ENV = import.meta.env.VITE_API_URL;
+const BASE = ENV !== undefined ? ENV : "http://localhost:8000";
+
 export async function analyzeProject(
   path: string
 ): Promise<ProjectAnalysis> {
@@ -61,7 +64,7 @@ async function streamFetch(
   onError: (err: Error) => void,
 ) {
   try {
-    const response = await fetch("http://localhost:8000" + url, {
+    const response = await fetch(BASE + url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -134,6 +137,33 @@ export async function generateReadme(path: string, language: string = "en") {
   return response.data;
 }
 
+export interface RAGStatus {
+  ready: boolean;
+  chroma_dir: string;
+  chunk_lines: number;
+  overlap_lines: number;
+  max_chunks_per_file: number;
+  max_results: number;
+  total_chunks: number | null;
+  project_chunks: number | null;
+}
+
+export async function getRAGStatus(path?: string): Promise<RAGStatus> {
+  const params = path ? `?path=${encodeURIComponent(path)}` : "";
+  const response = await api.get(`/project/rag-status${params}`);
+  return response.data;
+}
+
+export async function reindexProject(path: string): Promise<{ message: string; files: number }> {
+  const response = await api.post("/project/rag-reindex", { path });
+  return response.data;
+}
+
+export async function clearRAGIndex(path: string): Promise<{ message: string }> {
+  const response = await api.request({ method: "DELETE", url: "/project/rag-clear", data: { path } });
+  return response.data;
+}
+
 export async function explainFile(path: string) {
   const response = await api.post("/project/explain-file", {
     path,
@@ -144,6 +174,11 @@ export async function explainFile(path: string) {
 
 export async function casualChat(message: string) {
   const response = await api.post("/chat", { message });
+  return response.data;
+}
+
+export async function clearChatMemory() {
+  const response = await api.post("/chat-clear");
   return response.data;
 }
 
@@ -179,7 +214,7 @@ export async function explainFileStream(
   onError: (error: Error) => void,
 ): Promise<void> {
   try {
-    const response = await fetch("http://localhost:8000/project/explain-file", {
+    const response = await fetch(BASE + "/project/explain-file", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path, language }),

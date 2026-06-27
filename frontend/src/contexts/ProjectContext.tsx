@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useState,
+  useEffect,
   type ReactNode,
 } from "react";
 
@@ -12,11 +13,15 @@ import {
   explainFileStream,
 } from "../services/projectService";
 import { useLanguage } from "./LanguageContext";
+import { useToast } from "./ToastContext";
 
 import type { ProjectAnalysis } from "../types/Project";
 import type { ProjectFile } from "../types/Files";
 
 const RECENT_KEY = "devpilot_recent";
+const PATH_KEY = "devpilot_path";
+const ANALYSIS_KEY = "devpilot_analysis";
+const FILES_KEY = "devpilot_files";
 
 function loadRecent(): string[] {
   try {
@@ -30,6 +35,15 @@ function saveRecent(path: string) {
   const list = loadRecent().filter((p) => p !== path);
   list.unshift(path);
   localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 10)));
+}
+
+function loadJSON<T>(key: string, fallback: T): T {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 interface ProjectContextType {
@@ -49,6 +63,7 @@ interface ProjectContextType {
 
   loading: boolean;
   explaining: boolean;
+  fileLoading: boolean;
 
   recentProjects: string[];
 
@@ -59,11 +74,18 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const { language, t } = useLanguage();
-  const [currentPath, setCurrentPath] = useState("");
+  const { toast } = useToast();
+  const [currentPath, setCurrentPath] = useState(() =>
+    localStorage.getItem(PATH_KEY) || "",
+  );
 
-  const [analysis, setAnalysis] = useState<ProjectAnalysis | null>(null);
+  const [analysis, setAnalysis] = useState<ProjectAnalysis | null>(() =>
+    loadJSON<ProjectAnalysis | null>(ANALYSIS_KEY, null),
+  );
 
-  const [files, setFiles] = useState<ProjectFile[]>([]);
+  const [files, setFiles] = useState<ProjectFile[]>(() =>
+    loadJSON<ProjectFile[]>(FILES_KEY, []),
+  );
 
   const [selectedFile, setSelectedFile] = useState<ProjectFile | null>(null);
 
@@ -75,7 +97,25 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const [explaining, setExplaining] = useState(false);
 
+  const [fileLoading, setFileLoading] = useState(false);
+
   const [recentProjects, setRecentProjects] = useState<string[]>(loadRecent);
+
+  useEffect(() => {
+    localStorage.setItem(PATH_KEY, currentPath);
+  }, [currentPath]);
+
+  useEffect(() => {
+    if (analysis) {
+      localStorage.setItem(ANALYSIS_KEY, JSON.stringify(analysis));
+    } else {
+      localStorage.removeItem(ANALYSIS_KEY);
+    }
+  }, [analysis]);
+
+  useEffect(() => {
+    localStorage.setItem(FILES_KEY, JSON.stringify(files));
+  }, [files]);
 
   async function analyze() {
     if (!currentPath) return;
@@ -101,6 +141,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
       saveRecent(currentPath);
       setRecentProjects(loadRecent());
+      toast("Proyecto analizado correctamente", "success");
+    } catch {
+      toast("No se pudo analizar el proyecto", "error");
     } finally {
       setLoading(false);
     }
@@ -109,8 +152,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   async function selectFile(file: ProjectFile) {
     setSelectedFile(file);
 
-    // Limpiamos la explicación al cambiar de archivo
     setFileExplanation("");
+    setFileLoading(true);
 
     try {
       const data = await getFileContent(file.path);
@@ -118,8 +161,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setFileContent(data.content);
     } catch (error) {
       console.error("Error loading file:", error);
+      toast("No se pudo cargar el archivo", "error");
 
       setFileContent("");
+    } finally {
+      setFileLoading(false);
     }
   }
 
@@ -138,6 +184,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         console.error("Error explaining file:", error);
         setFileExplanation(t("viewer.error"));
         setExplaining(false);
+        toast("Error al explicar el archivo", "error");
       },
     );
   }
@@ -161,6 +208,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
         loading,
         explaining,
+        fileLoading,
 
         recentProjects,
 

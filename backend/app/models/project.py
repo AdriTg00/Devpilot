@@ -33,3 +33,24 @@ class FileRequest(BaseModel):
 class FileContentResponse(BaseModel):
     path: str
     content: str
+
+
+class RAGStatusResponse(BaseModel):
+    ready: bool
+    chroma_dir: str
+    chunk_lines: int
+    overlap_lines: int
+    max_chunks_per_file: int
+    max_results: int
+    total_chunks: int | None = None
+    project_chunks: int | None = None
+
+
+class RAGReindexRequest(BaseModel):
+    path: str = Field(..., min_length=1, description="Ruta al proyecto")
+
+    files: list[str] = Field(default_factory=list, description="Lista de archivos a indexar (opcional)")
+
+
+class RAGClearRequest(BaseModel):
+    path: str = Field(..., min_length=1, description="Ruta al proyecto")

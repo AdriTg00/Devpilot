@@ -1,0 +1,20 @@
+{
+  "C:\\Users\\atgno\\Documents\\GitHub\\Devpilot": [
+    {
+      "role": "user",
+      "content": "Hola¡"
+    },
+    {
+      "role": "assistant",
+      "content": "\n¡Hola! ¿En qué puedo ayudarte hoy?"
+    },
+    {
+      "role": "user",
+      "content": "Que opinas de mi proyecto? crees que es profesional?"
+    },
+    {
+      "role": "assistant",
+      "content": "\n# Propósito / Purpose\nEl archivo `prompts.py` es responsable de definir plantillas de prompts para el LLM (Large Language Model) en el proyecto Devpilot. Estas plantillas se utilizan para generar respuestas a preguntas del usuario sobre el proyecto.\n\n# Responsabilidades / Responsabilidades\n- Define plantillas de prompts para el LLM.\n- Las plantillas están centralizadas en este archivo para facilitar su mantenimiento e iteración sin tocar la lógica de negocio de los servicios.\n\n# Componentes Principales / Key Components\n- `language_instruction`: función que devuelve una instrucción de idioma dependiendo del idioma seleccionado.\n- `README_PROMPT`, `EXPLAIN_PROJECT_PROMPT`, `EXPLAIN_FILE_PROMPT`, `SUMMARIZE_PROJECT_PROMPT`: plantillas de prompts para el LLM.\n\n# Dependencias / Dependencias\n- No hay dependencias externas.\n- Internamente, depende de otros archivos del proyecto para obtener el contexto del proyecto.\n\n# Mejoras / Improvements\n- Considerar la posibilidad de utilizar un patrón de diseño de fábrica para crear plantillas de prompts en lugar de definirlas explícitamente en este archivo.\n- Revisar la complejidad de las plantillas y considerar la posibilidad de dividirlas en componentes más pequeños.\n\n# Riesgos / Riesgos\n- No se observan riesgos relevantes."
+    }
+  ]
+}

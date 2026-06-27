@@ -19,3 +19,6 @@ CORS_ORIGINS: list[str] = os.getenv(
 MAX_FILE_CHARS: int = int(os.getenv("MAX_FILE_CHARS", "1000"))
 MAX_CONTEXT_CHARS: int = int(os.getenv("MAX_CONTEXT_CHARS", "10000"))
 
+# Persistencia de memoria conversacional
+MEMORY_STORAGE_PATH: str = os.getenv("MEMORY_STORAGE_PATH", str(Path(__file__).parents[2] / ".memory" / "conversations.json"))
+

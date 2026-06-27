@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import {
@@ -6,11 +7,19 @@ import {
   generateReadme,
 } from "../../services/projectService";
 import Card from "../../components/ui/Card";
+import Button from "../../components/ui/Button";
 import TypingEffect from "../../components/ui/TypingEffect";
+import { useToast } from "../../contexts/ToastContext";
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+};
 
 export default function Documentation() {
   const { currentPath } = useProject();
   const { language, t } = useLanguage();
+  const { toast } = useToast();
 
   const [docLoading, setDocLoading] = useState(false);
   const [readmeLoading, setReadmeLoading] = useState(false);
@@ -32,6 +41,7 @@ export default function Documentation() {
       () => {
         setDocumentation("Error generating documentation.");
         setDocLoading(false);
+        toast("Error al generar documentación", "error");
       },
     );
   }
@@ -43,8 +53,10 @@ export default function Documentation() {
     try {
       const data = await generateReadme(currentPath, language);
       setReadmeResult(data);
+      toast("README generado correctamente", "success");
     } catch {
       setReadmeResult({ readme_path: "", already_existed: false });
+      toast("Error al generar README", "error");
     } finally {
       setReadmeLoading(false);
     }
@@ -60,46 +72,64 @@ export default function Documentation() {
         </p>
       ) : (
         <>
-          <div className="flex gap-4">
-            <button
-              onClick={handleGenerateDoc}
-              disabled={docLoading}
-              className="rounded-lg bg-emerald-600 px-6 py-3 font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {docLoading ? "Generating..." : "Generate Documentation"}
-            </button>
+          <motion.div
+            className="flex flex-wrap gap-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Button onClick={handleGenerateDoc} loading={docLoading}>
+              Generate Documentation
+            </Button>
 
-            <button
-              onClick={handleGenerateReadme}
-              disabled={readmeLoading}
-              className="rounded-lg bg-slate-700 px-6 py-3 font-medium text-white transition hover:bg-slate-600 disabled:opacity-50"
-            >
-              {readmeLoading ? "Generating..." : "Generate README"}
-            </button>
-          </div>
+            <Button onClick={handleGenerateReadme} loading={readmeLoading} variant="secondary">
+              Generate README
+            </Button>
+          </motion.div>
 
-          {readmeResult && (
-            <Card>
-              <h2 className="mb-2 text-lg font-semibold text-emerald-400">
-                README generated
-              </h2>
-              <p className="text-sm text-slate-300">
-                Path: <code className="text-emerald-400">{readmeResult.readme_path}</code>
-              </p>
-              <p className="text-sm text-slate-400">
-                {readmeResult.already_existed
-                  ? "Overwritten existing file."
-                  : "Created new file."}
-              </p>
-            </Card>
-          )}
+          <AnimatePresence mode="wait">
+            {readmeResult && (
+              <motion.div
+                key="readme"
+                variants={fadeUp}
+                initial="hidden"
+                animate="visible"
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card>
+                  <h2 className="mb-2 text-lg font-semibold text-emerald-400">
+                    README generated
+                  </h2>
+                  <p className="text-sm text-slate-300">
+                    Path: <code className="text-emerald-400">{readmeResult.readme_path}</code>
+                  </p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {readmeResult.already_existed
+                      ? "Overwritten existing file."
+                      : "Created new file."}
+                  </p>
+                </Card>
+              </motion.div>
+            )}
 
-          {(docLoading || documentation) && (
-            <Card>
-              <h2 className="mb-4 text-lg font-semibold">Documentation</h2>
-              <TypingEffect text={documentation} loading={docLoading} />
-            </Card>
-          )}
+            {(docLoading || documentation) && (
+              <motion.div
+                key="doc"
+                variants={fadeUp}
+                initial="hidden"
+                animate="visible"
+                transition={{ duration: 0.3 }}
+              >
+                <Card>
+                  <h2 className="mb-4 text-lg font-semibold">Documentation</h2>
+                  <div className="max-h-[60vh] overflow-y-auto">
+                    <TypingEffect text={documentation} loading={docLoading} />
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       )}
     </div>

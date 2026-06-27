@@ -5,10 +5,12 @@ import logging
 # estan disponibles cuando LLMService y otros modulos las leen.
 from app.core.config import CORS_ORIGINS
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.chat import router as chat_router
 from app.api.projects import router as project_router
 from app.api.tools import router as tools_router
+from app.api.settings import router as settings_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,3 +34,9 @@ app.add_middleware(
 app.include_router(chat_router)
 app.include_router(project_router)
 app.include_router(tools_router)
+app.include_router(settings_router)
+
+
+@app.get("/health")
+def health():
+    return JSONResponse({"status": "ok", "version": "0.1.0"})

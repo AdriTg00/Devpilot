@@ -32,7 +32,12 @@ export default function Project() {
         <ProjectSelector />
       </motion.div>
       {analysis && (
-        <>
+        <motion.div
+          className="space-y-8"
+          variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
+          initial="hidden"
+          animate="visible"
+        >
           <motion.div variants={fadeUp}>
             <CurrentProject />
           </motion.div>
@@ -45,11 +50,18 @@ export default function Project() {
           <motion.div variants={fadeUp}>
             <RAGStatus />
           </motion.div>
-        </>
+        </motion.div>
       )}
       {!analysis && (
-        <motion.div variants={fadeUp}>
-          <RecentProjects />
+        <motion.div
+          className="space-y-8"
+          variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
+          initial="hidden"
+          animate="visible"
+        >
+          <motion.div variants={fadeUp}>
+            <RecentProjects />
+          </motion.div>
         </motion.div>
       )}
       <motion.div variants={fadeUp}>

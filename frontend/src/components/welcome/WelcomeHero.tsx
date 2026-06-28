@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import fallbackImg from "../../assets/DevPilotSinFondo.png";
 
 interface Props {
   onGetStarted: () => void;
@@ -30,6 +31,7 @@ const scaleIn = {
 
 export default function WelcomeHero({ onGetStarted }: Props) {
   const [mounted, setMounted] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -63,17 +65,27 @@ export default function WelcomeHero({ onGetStarted }: Props) {
               boxShadow: "0 0 30px rgba(16,185,129,0.2), 0 0 60px rgba(16,185,129,0.08)",
             }}
           >
-            <video
-              src="/DevPilotSinFondo.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="block h-48 w-48 md:h-64 md:w-64"
-              style={{
-                borderRadius: "28px",
-              }}
-            />
+            {videoError ? (
+              <img
+                src={fallbackImg}
+                alt="DevPilot"
+                className="block h-48 w-48 md:h-64 md:w-64"
+                style={{ borderRadius: "28px" }}
+              />
+            ) : (
+              <video
+                src="/DevPilotSinFondo.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                onError={() => setVideoError(true)}
+                className="block h-48 w-48 md:h-64 md:w-64"
+                style={{
+                  borderRadius: "28px",
+                }}
+              />
+            )}
           </div>
         </motion.div>
 

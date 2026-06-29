@@ -1,19 +1,19 @@
 services:
   backend:
     build: ./backend
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - chroma_data:/app/.chroma
-      - memory_data:/app/.memory
-      - settings_data:/app/.settings
+      - db_data:/app/.memory
     env_file:
       - ./backend/.env
     environment:
       - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5-coder:7b}
       - GROQ_API_KEY=${GROQ_API_KEY:-}
       - GROQ_MODEL=${GROQ_MODEL:-fast}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
       - MEMORY_STORAGE_PATH=/app/.memory/conversations.json
     restart: unless-stopped
     healthcheck:
@@ -46,8 +46,7 @@ services:
 
 volumes:
   chroma_data:
-  memory_data:
-  settings_data:
+  db_data:
 
 networks:
   devpilot:

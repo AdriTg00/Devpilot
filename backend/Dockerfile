@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY --chown=devpilot:devpilot app/ app/
 
-RUN mkdir -p .chroma .memory .settings && chown -R devpilot:devpilot .chroma .memory .settings
+RUN mkdir -p .chroma .memory && chown -R devpilot:devpilot .chroma .memory
 
 USER devpilot
 

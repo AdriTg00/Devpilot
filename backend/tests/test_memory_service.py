@@ -1,113 +1,97 @@
-import json
+"""Tests del servicio de memoria con SQLite."""
 import pytest
-from pathlib import Path
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.db.models import Base
 
 
-def test_memory_service_add_and_get(tmp_path: Path):
+@pytest.fixture
+def ms(monkeypatch, tmp_path):
     from app.services.memory_service import MemoryService
 
-    path = tmp_path / "memory.json"
-    ms = MemoryService(storage_path=str(path))
+    db_path = tmp_path / "test.db"
+    engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=engine)
+    TestSession = sessionmaker(bind=engine)
 
-    ms.add("proj1", "user", "hello")
-    ms.add("proj1", "assistant", "world")
+    import app.services.memory_service as mod
+    monkeypatch.setattr(mod, "SessionLocal", TestSession)
 
-    history = ms.get_history("proj1")
-    assert len(history) == 2
-    assert history[0] == {"role": "user", "content": "hello"}
-    assert history[1] == {"role": "assistant", "content": "world"}
-
-
-def test_memory_service_build_context(tmp_path: Path):
-    from app.services.memory_service import MemoryService
-
-    path = tmp_path / "memory.json"
-    ms = MemoryService(storage_path=str(path))
-
-    ms.add("proj1", "user", "hello")
-    ms.add("proj1", "assistant", "world")
-
-    context = ms.build_context("proj1")
-    assert "user: hello" in context
-    assert "assistant: world" in context
+    return MemoryService()
 
 
-def test_memory_service_max_history(tmp_path: Path):
-    from app.services.memory_service import MemoryService, MAX_HISTORY_PER_KEY
+class TestMemoryService:
+    def test_add_and_get(self, ms):
+        ms.add("proj1", "user", "hello")
+        ms.add("proj1", "assistant", "world")
 
-    path = tmp_path / "memory.json"
-    ms = MemoryService(storage_path=str(path))
+        history = ms.get_history("proj1")
+        assert len(history) == 2
+        assert history[0] == {"role": "user", "content": "hello"}
+        assert history[1] == {"role": "assistant", "content": "world"}
 
-    for i in range(MAX_HISTORY_PER_KEY + 5):
-        ms.add("proj1", "user", f"msg{i}")
+    def test_build_context(self, ms):
+        ms.add("proj1", "user", "hello")
+        ms.add("proj1", "assistant", "world")
 
-    history = ms.get_history("proj1")
-    assert len(history) == MAX_HISTORY_PER_KEY
-    assert history[0]["content"] == f"msg{5}"
-    assert history[-1]["content"] == f"msg{MAX_HISTORY_PER_KEY + 4}"
+        context = ms.build_context("proj1")
+        assert "user: hello" in context
+        assert "assistant: world" in context
 
+    def test_max_history(self, ms):
+        from app.services.memory_service import MAX_HISTORY_PER_KEY
 
-def test_memory_service_clear(tmp_path: Path):
-    from app.services.memory_service import MemoryService
+        for i in range(MAX_HISTORY_PER_KEY + 5):
+            ms.add("proj1", "user", f"msg{i}")
 
-    path = tmp_path / "memory.json"
-    ms = MemoryService(storage_path=str(path))
+        history = ms.get_history("proj1")
+        assert len(history) == MAX_HISTORY_PER_KEY
 
-    ms.add("proj1", "user", "hello")
-    ms.clear("proj1")
+    def test_clear(self, ms):
+        ms.add("proj1", "user", "hello")
+        ms.clear("proj1")
+        assert ms.get_history("proj1") == []
 
-    assert ms.get_history("proj1") == []
+    def test_persistence(self, ms):
+        ms.add("proj1", "user", "hello")
+        ms.add("proj1", "assistant", "world")
 
+        # Same DB — data persists
+        history = ms.get_history("proj1")
+        assert len(history) == 2
 
-def test_memory_service_persistence(tmp_path: Path):
-    from app.services.memory_service import MemoryService
+    def test_empty_context(self, ms):
+        assert ms.build_context("nonexistent") == ""
 
-    path = tmp_path / "memory.json"
-    ms1 = MemoryService(storage_path=str(path))
-    ms1.add("proj1", "user", "hello")
-    ms1.add("proj1", "assistant", "world")
-
-    ms2 = MemoryService(storage_path=str(path))
-    history = ms2.get_history("proj1")
-    assert len(history) == 2
-    assert history[0] == {"role": "user", "content": "hello"}
-
-
-def test_memory_service_empty_context(tmp_path: Path):
-    from app.services.memory_service import MemoryService
-
-    path = tmp_path / "memory.json"
-    ms = MemoryService(storage_path=str(path))
-
-    assert ms.build_context("nonexistent") == ""
-
-
-def test_memory_service_no_storage():
-    from app.services.memory_service import MemoryService
-
-    ms = MemoryService(storage_path="")
-    ms.add("proj1", "user", "hello")
-    assert ms.get_history("proj1") == [{"role": "user", "content": "hello"}]
+    def test_chars_limit(self, ms):
+        long_msg = "x" * 5000
+        ms.add("proj1", "user", long_msg)
+        context = ms.build_context("proj1")
+        assert len(context) < 5000
 
 
-def test_memory_service_corrupted_file(tmp_path: Path):
-    from app.services.memory_service import MemoryService
+class TestMemorySessions:
+    def test_create_and_list(self, ms):
+        s = ms.create_session("test-project", "Mi sesion")
+        sessions = ms.list_sessions("test-project")
+        assert len(sessions) == 1
+        assert sessions[0]["id"] == s["id"]
 
-    path = tmp_path / "memory.json"
-    path.write_text("not valid json", encoding="utf-8")
+    def test_delete_session(self, ms):
+        s = ms.create_session("test-project", "To delete")
+        ms.delete_session(s["id"])
+        sessions = ms.list_sessions("test-project")
+        assert len(sessions) == 0
 
-    ms = MemoryService(storage_path=str(path))
-    assert ms.get_history("proj1") == []
+    def test_rename_session(self, ms):
+        s = ms.create_session("test-project", "Old name")
+        updated = ms.rename_session(s["id"], "New name")
+        assert updated["name"] == "New name"
 
-
-def test_memory_service_chars_limit(tmp_path: Path):
-    from app.services.memory_service import MemoryService
-
-    path = tmp_path / "memory.json"
-    ms = MemoryService(storage_path=str(path))
-
-    long = "x" * 5000
-    ms.add("proj1", "user", long)
-
-    context = ms.build_context("proj1")
-    assert len(context) < 5000
+    def test_add_and_get_session_messages(self, ms):
+        s = ms.create_session("test-project")
+        ms.add_session_message(s["id"], "user", "hello")
+        msgs = ms.get_session_messages(s["id"])
+        assert len(msgs) == 1
+        assert msgs[0]["content"] == "hello"

@@ -8,13 +8,47 @@ import Card from "../ui/Card";
 export default function CurrentProject() {
     const { t } = useLanguage();
     const { toast } = useToast();
-    const { analysis, closeProject, closing, currentPath } = useProject();
+    const { analysis, closeProject, closing, currentPath, previousPath, resumeProject, loading } = useProject();
     const [exporting, setExporting] = useState(false);
     const [sharing, setSharing] = useState(false);
     const [shareLink, setShareLink] = useState<string | null>(null);
+    const [resuming, setResuming] = useState(false);
 
-    if (!analysis)
-        return null;
+    async function handleResume() {
+        setResuming(true);
+        try {
+            await resumeProject();
+        } catch {
+            toast("Error al retomar proyecto", "error");
+        } finally {
+            setResuming(false);
+        }
+    }
+
+    if (!analysis) {
+        if (!previousPath) return null;
+
+        return (
+            <Card>
+                <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                        <p className="text-sm text-slate-400">Previous project</p>
+                        <p className="mt-1 truncate text-sm font-medium text-slate-300">
+                            {previousPath.split("\\").pop()}
+                        </p>
+                        <p className="mt-1 truncate text-xs text-slate-500">{previousPath}</p>
+                    </div>
+                    <button
+                        onClick={handleResume}
+                        disabled={resuming || loading}
+                        className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                        {resuming ? "Opening..." : "Resume"}
+                    </button>
+                </div>
+            </Card>
+        );
+    }
 
     async function handleExport() {
         setExporting(true);

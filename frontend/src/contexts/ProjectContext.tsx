@@ -2,7 +2,6 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
   type ReactNode,
 } from "react";
 
@@ -21,9 +20,7 @@ import type { ProjectAnalysis } from "../types/Project";
 import type { ProjectFile } from "../types/Files";
 
 const RECENT_KEY = "devpilot_recent";
-const PATH_KEY = "devpilot_path";
-const ANALYSIS_KEY = "devpilot_analysis";
-const FILES_KEY = "devpilot_files";
+const PREV_PATH_KEY = "devpilot_prev_path";
 
 function loadRecent(): string[] {
   try {
@@ -39,14 +36,6 @@ function saveRecent(path: string) {
   localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 10)));
 }
 
-function loadJSON<T>(key: string, fallback: T): T {
-  try {
-    const v = localStorage.getItem(key);
-    return v ? JSON.parse(v) : fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 interface ProjectContextType {
   currentPath: string;
@@ -70,10 +59,12 @@ interface ProjectContextType {
   fileLoading: boolean;
 
   recentProjects: string[];
+  previousPath: string;
 
   analyze: () => Promise<void>;
   uploadAndAnalyze: (name: string, files: Record<string, string>) => Promise<void>;
   closeProject: () => Promise<void>;
+  resumeProject: () => Promise<void>;
 } 
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -81,17 +72,9 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const { language, t } = useLanguage();
   const { toast } = useToast();
-  const [currentPath, setCurrentPath] = useState(() =>
-    localStorage.getItem(PATH_KEY) || "",
-  );
-
-  const [analysis, setAnalysis] = useState<ProjectAnalysis | null>(() =>
-    loadJSON<ProjectAnalysis | null>(ANALYSIS_KEY, null),
-  );
-
-  const [files, setFiles] = useState<ProjectFile[]>(() =>
-    loadJSON<ProjectFile[]>(FILES_KEY, []),
-  );
+  const [currentPath, setCurrentPath] = useState("");
+  const [analysis, setAnalysis] = useState<ProjectAnalysis | null>(null);
+  const [files, setFiles] = useState<ProjectFile[]>([]);
 
   const [selectedFile, setSelectedFile] = useState<ProjectFile | null>(null);
 
@@ -110,21 +93,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const [recentProjects, setRecentProjects] = useState<string[]>(loadRecent);
 
-  useEffect(() => {
-    localStorage.setItem(PATH_KEY, currentPath);
-  }, [currentPath]);
-
-  useEffect(() => {
-    if (analysis) {
-      localStorage.setItem(ANALYSIS_KEY, JSON.stringify(analysis));
-    } else {
-      localStorage.removeItem(ANALYSIS_KEY);
-    }
-  }, [analysis]);
-
-  useEffect(() => {
-    localStorage.setItem(FILES_KEY, JSON.stringify(files));
-  }, [files]);
+  const previousPath = localStorage.getItem(PREV_PATH_KEY) || "";
 
   async function uploadAndAnalyze(name: string, files: Record<string, string>) {
     setUploading(true);
@@ -148,6 +117,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setFileContent("");
       setFileExplanation("");
       saveRecent(workspacePath);
+      localStorage.setItem(PREV_PATH_KEY, workspacePath);
       setRecentProjects(loadRecent());
       toast("Proyecto subido y analizado correctamente", "success");
     } catch (err) {
@@ -177,36 +147,41 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function analyze() {
-    if (!currentPath) return;
+  async function resumeProject() {
+    const prev = localStorage.getItem(PREV_PATH_KEY);
+    if (!prev) return;
+    setCurrentPath(prev);
+    await analyzeWithPath(prev);
+  }
 
+  async function analyzeWithPath(path: string) {
     setLoading(true);
-
     try {
-      const data = await analyzeProject(currentPath);
-
+      const data = await analyzeProject(path);
       setAnalysis({
         ...data,
-        projectName: currentPath.split("\\").pop(),
-        projectPath: currentPath,
+        projectName: path.split("\\").pop(),
+        projectPath: path,
       });
-
-      const projectFiles = await getFiles(currentPath);
-
+      const projectFiles = await getFiles(path);
       setFiles(projectFiles);
-
       setSelectedFile(null);
       setFileContent("");
       setFileExplanation("");
-
-      saveRecent(currentPath);
+      saveRecent(path);
       setRecentProjects(loadRecent());
+      localStorage.setItem(PREV_PATH_KEY, path);
       toast("Proyecto analizado correctamente", "success");
     } catch {
       toast("No se pudo analizar el proyecto", "error");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function analyze() {
+    if (!currentPath) return;
+    await analyzeWithPath(currentPath);
   }
 
   async function selectFile(file: ProjectFile) {
@@ -273,10 +248,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         fileLoading,
 
         recentProjects,
+        previousPath,
 
         analyze,
         uploadAndAnalyze,
         closeProject,
+        resumeProject,
       }}
     >
       {children}

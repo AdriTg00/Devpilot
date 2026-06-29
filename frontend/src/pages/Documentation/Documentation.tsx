@@ -16,9 +16,28 @@ const fadeUp = {
   visible: { opacity: 1, y: 0 },
 };
 
+function DocSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+      <h2 className="mb-3 text-sm font-semibold text-white">{title}</h2>
+      <div className="prose prose-invert prose-sm max-w-none text-slate-400">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Kbd({ children }: { children: string }) {
+  return (
+    <kbd className="inline-block rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[11px] text-emerald-400">
+      {children}
+    </kbd>
+  );
+}
+
 export default function Documentation() {
   const { currentPath } = useProject();
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
   const { toast } = useToast();
 
   const [docLoading, setDocLoading] = useState(false);
@@ -41,7 +60,7 @@ export default function Documentation() {
       () => {
         setDocumentation("Error generating documentation.");
         setDocLoading(false);
-        toast("Error al generar documentación", "error");
+        toast("Error al generar documentacion", "error");
       },
     );
   }
@@ -63,15 +82,117 @@ export default function Documentation() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t("doc.title")}</h1>
+    <div className="space-y-6 pb-8">
+      <h1 className="text-2xl font-bold text-white">Documentation</h1>
 
-      {!currentPath ? (
-        <p className="text-slate-400">
-          Open a project from the Dashboard first.
+      {/* === DevPilot Docs === */}
+      <DocSection title="About DevPilot">
+        <p>
+          DevPilot is a local-first AI developer assistant. It analyzes your source code,
+          indexes it with vector search (RAG), and lets you chat with an LLM that
+          understands your project. All processing happens on your machine.
         </p>
-      ) : (
+      </DocSection>
+
+      <DocSection title="Quick Start">
+        <ol className="list-decimal space-y-2 pl-5">
+          <li>Open a project folder from the <strong>Projects</strong> page (drag &amp; drop or browse).</li>
+          <li>Wait for analysis to complete. The RAG index builds automatically.</li>
+          <li>Go to <strong>Chat</strong> and ask questions about your code.</li>
+          <li>Use the <strong>File Explorer</strong> to view, edit, and search files.</li>
+          <li>Configure your LLM provider in <strong>Settings</strong> (Ollama or Groq).</li>
+        </ol>
+      </DocSection>
+
+      <DocSection title="Keyboard Shortcuts">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+          {[
+            ["?", "Show keyboard shortcuts"],
+            ["Esc", "Close modal / cancel"],
+            ["Ctrl+K", "File search (Explorer)"],
+            ["Ctrl+Shift+F", "Search in project code"],
+            ["Ctrl+F", "Search inside file (Viewer)"],
+            ["Ctrl+E", "Toggle edit mode (Viewer)"],
+            ["Ctrl+S", "Save file (Viewer)"],
+            ["Enter", "Send message (Chat)"],
+          ].map(([key, desc]) => (
+            <div key={key} className="flex items-center gap-3 rounded-lg px-2 py-1 hover:bg-slate-800/50">
+              <Kbd>{key}</Kbd>
+              <span className="text-sm text-slate-400">{desc}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-slate-600">Press <Kbd>?</Kbd> anywhere to see all shortcuts.</p>
+      </DocSection>
+
+      <DocSection title="LLM Providers">
+        <div className="space-y-3">
+          <div>
+            <h3 className="font-medium text-slate-300">Ollama (default)</h3>
+            <p className="text-xs text-slate-500">
+              Local models via Ollama. Install Ollama separately and pull a model
+              (e.g. <code className="text-emerald-400">ollama pull qwen2.5-coder:7b</code>).
+            </p>
+          </div>
+          <div>
+            <h3 className="font-medium text-slate-300">Groq (cloud)</h3>
+            <p className="text-xs text-slate-500">
+              Fast cloud inference via Groq API. Create a free key at{" "}
+              <a href="https://console.groq.com" className="text-emerald-400 underline" target="_blank" rel="noopener">
+                console.groq.com
+              </a>{" "}
+              and add it to your <code className="text-emerald-400">.env</code> file.
+            </p>
+          </div>
+        </div>
+      </DocSection>
+
+      <DocSection title="RAG (Retrieval-Augmented Generation)">
+        <p>
+          DevPilot indexes your project code into ChromaDB, a local vector database.
+          When you ask a question in Chat, it retrieves the most relevant code snippets
+          and includes them as context for the LLM, showing source citations inline.
+        </p>
+        <p className="mt-2 text-xs text-slate-500">
+          The index rebuilds automatically when you open or upload a project.
+          Saving a file auto-reindexes just that file.
+        </p>
+      </DocSection>
+
+      <DocSection title="API Endpoints">
+        <p className="mb-2 text-xs text-slate-500">
+          All API routes are prefixed with <code className="text-emerald-400">/api/v1</code>.
+          Protected routes require a JWT token (login via <code className="text-emerald-400">POST /api/v1/auth/login</code>).
+          Full Swagger docs at <a href="http://localhost:8000/docs" className="text-emerald-400 underline" target="_blank" rel="noopener">/docs</a>.
+        </p>
+        <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+          {[
+            ["GET /health", "Basic health check"],
+            ["GET /health/detailed", "Full service status"],
+            ["GET /metrics", "Prometheus metrics"],
+            ["POST /api/v1/auth/login", "JWT authentication"],
+            ["GET/PUT /api/v1/settings", "LLM/RAG settings"],
+            ["POST /api/v1/project/analyze", "Analyze project stats"],
+            ["POST /api/v1/project/question-stream", "Streaming project Q&A"],
+            ["POST /api/v1/chat/tool-stream", "Chat with tool-calling"],
+            ["POST /api/v1/project/export", "Export project as ZIP"],
+            ["POST /api/v1/project/share", "Generate share link"],
+            ["GET /shared/{token}", "View shared project"],
+          ].map(([ep, desc]) => (
+            <div key={ep} className="flex flex-col rounded-lg bg-slate-800/50 px-3 py-1.5">
+              <code className="text-emerald-400">{ep}</code>
+              <span className="text-slate-500">{desc}</span>
+            </div>
+          ))}
+        </div>
+      </DocSection>
+
+      {/* === Project-specific === */}
+      {currentPath && (
         <>
+          <hr className="border-slate-800" />
+          <h2 className="text-xl font-bold text-white">Project Tools</h2>
+
           <motion.div
             className="flex flex-wrap gap-4"
             initial={{ opacity: 0, y: 10 }}
@@ -79,11 +200,10 @@ export default function Documentation() {
             transition={{ duration: 0.3 }}
           >
             <Button onClick={handleGenerateDoc} loading={docLoading}>
-              {docLoading ? "Generating Documentation…" : "Generate Documentation"}
+              {docLoading ? "Generating Documentation\u2026" : "Generate Documentation"}
             </Button>
-
             <Button onClick={handleGenerateReadme} loading={readmeLoading} variant="secondary">
-              {readmeLoading ? "Generating README…" : "Generate README"}
+              {readmeLoading ? "Generating README\u2026" : "Generate README"}
             </Button>
           </motion.div>
 
@@ -98,16 +218,12 @@ export default function Documentation() {
                 transition={{ duration: 0.3 }}
               >
                 <Card>
-                  <h2 className="mb-2 text-lg font-semibold text-emerald-400">
-                    README generated
-                  </h2>
+                  <h2 className="mb-2 text-lg font-semibold text-emerald-400">README generated</h2>
                   <p className="text-sm text-slate-300">
                     Path: <code className="text-emerald-400">{readmeResult.readme_path}</code>
                   </p>
                   <p className="mt-1 text-sm text-slate-400">
-                    {readmeResult.already_existed
-                      ? "Overwritten existing file."
-                      : "Created new file."}
+                    {readmeResult.already_existed ? "Overwritten existing file." : "Created new file."}
                   </p>
                 </Card>
               </motion.div>
@@ -122,7 +238,7 @@ export default function Documentation() {
                 transition={{ duration: 0.3 }}
               >
                 <Card>
-                  <h2 className="mb-4 text-lg font-semibold">Documentation</h2>
+                  <h2 className="mb-4 text-lg font-semibold text-white">Documentation</h2>
                   <div className="max-h-[60vh] overflow-y-auto">
                     <TypingEffect text={documentation} loading={docLoading} />
                   </div>

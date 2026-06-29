@@ -3,7 +3,9 @@ import { lazy, Suspense } from "react";
 
 import MainLayout from "../layouts/MainLayout";
 import ErrorBoundary from "../components/error/ErrorBoundary";
+import AuthGuard from "../components/auth/AuthGuard";
 
+const Login = lazy(() => import("../pages/Login/Login"));
 const SharedProject = lazy(() => import("../pages/Shared/SharedProject"));
 const Chat = lazy(() => import("../pages/Chat/Chat"));
 const Project = lazy(() => import("../pages/Project/Project"));
@@ -33,36 +35,45 @@ function Lazy({ children }: { children: React.ReactNode }) {
 
 export const router = createBrowserRouter([
   {
+    path: "login",
+    element: <ErrorBoundary><Lazy><Login /></Lazy></ErrorBoundary>
+  },
+  {
     path: "shared/:token",
     element: <ErrorBoundary><Lazy><SharedProject /></Lazy></ErrorBoundary>
   },
   {
-    path: "/",
-    element: <MainLayout />,
+    element: <AuthGuard />,
     children: [
       {
-        index: true,
-        element: <Navigate to="/project" replace />
-      },
-      {
-        path: "project",
-        element: <ErrorBoundary><Lazy><Project /></Lazy></ErrorBoundary>
-      },
-      {
-        path: "chat",
-        element: <ErrorBoundary><Lazy><Chat /></Lazy></ErrorBoundary>
-      },
-      {
-        path: "documentation",
-        element: <ErrorBoundary><Lazy><Documentation /></Lazy></ErrorBoundary>
-      },
-      {
-        path: "settings",
-        element: <ErrorBoundary><Lazy><Settings /></Lazy></ErrorBoundary>
-      },
-      {
-        path: "health",
-        element: <ErrorBoundary><Lazy><Health /></Lazy></ErrorBoundary>
+        path: "/",
+        element: <MainLayout />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="/project" replace />
+          },
+          {
+            path: "project",
+            element: <ErrorBoundary><Lazy><Project /></Lazy></ErrorBoundary>
+          },
+          {
+            path: "chat",
+            element: <ErrorBoundary><Lazy><Chat /></Lazy></ErrorBoundary>
+          },
+          {
+            path: "documentation",
+            element: <ErrorBoundary><Lazy><Documentation /></Lazy></ErrorBoundary>
+          },
+          {
+            path: "settings",
+            element: <ErrorBoundary><Lazy><Settings /></Lazy></ErrorBoundary>
+          },
+          {
+            path: "health",
+            element: <ErrorBoundary><Lazy><Health /></Lazy></ErrorBoundary>
+          }
+        ]
       }
     ]
   }

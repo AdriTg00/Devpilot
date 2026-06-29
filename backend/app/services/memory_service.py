@@ -1,71 +1,92 @@
 ﻿import json
 import logging
-import os
-import tempfile
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
+
+from sqlalchemy import func
+from sqlalchemy.orm.attributes import flag_modified
+
+from app.db.database import SessionLocal
+from app.db.models import Message, Setting
 
 logger = logging.getLogger(__name__)
 
 MAX_HISTORY_PER_KEY = 20
 MAX_HISTORY_CHARS = 4000
-SESSION_INDEX_KEY = "_session_index"
+SESSION_INDEX_SETTING_KEY = "session_index"
 
 
 class MemoryService:
-    def __init__(self, storage_path: str = ""):
-        self._storage_path = storage_path
-        self._stores: dict[str, list[dict]] = {}
-        self._load()
+    # --- JSON → SQLite migration (one-time) ---
 
-    def _load(self):
-        if not self._storage_path:
+    def _maybe_migrate_from_json(self, db):
+        try:
+            from app.core.config import MEMORY_STORAGE_PATH
+        except ImportError:
             return
-        path = Path(self._storage_path)
+        from pathlib import Path
+        path = Path(MEMORY_STORAGE_PATH)
         if not path.exists():
             return
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            self._stores = {
-                k: v[-MAX_HISTORY_PER_KEY:]
-                for k, v in data.items()
-                if isinstance(v, list)
-            }
-            logger.info("Memory loaded from %s (%d keys)", path, len(self._stores))
-        except Exception as exc:
-            logger.warning("Could not load memory from %s: %s", path, exc)
-            self._stores = {}
-
-    def _save(self):
-        if not self._storage_path:
-            return
-        path = Path(self._storage_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(suffix=".json", dir=path.parent)
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(self._stores, f, ensure_ascii=False, indent=2)
-            os.replace(tmp, path)
+            data = json.loads(path.read_text("utf-8"))
         except Exception:
-            os.unlink(tmp)
-            raise
+            return
+        if not isinstance(data, dict) or not data:
+            return
+        existing = db.query(func.count(Message.id)).scalar()
+        if existing > 0:
+            return  # ya migrado
 
-    def _get_or_create(self, key: str) -> list[dict]:
-        if key not in self._stores:
-            self._stores[key] = []
-        return self._stores[key]
+        for key, msgs in data.items():
+            if not isinstance(msgs, list):
+                continue
+            for msg in msgs[-MAX_HISTORY_PER_KEY:]:
+                db.add(Message(
+                    key=key,
+                    role=msg.get("role", "user"),
+                    content=msg.get("content", ""),
+                ))
+        db.commit()
+        path.rename(path.with_suffix(".json.migrated"))
+        logger.info("Migrated %d keys from JSON to SQLite", len(data))
+
+    # --- Core operations ---
 
     def add(self, key: str, role: str, content: str):
-        history = self._get_or_create(key)
-        history.append({"role": role, "content": content})
-        if len(history) > MAX_HISTORY_PER_KEY:
-            history.pop(0)
-        self._save()
+        db = SessionLocal()
+        try:
+            db.add(Message(key=key, role=role, content=content))
+            # trim old messages per key
+            keep_ids = [
+                r[0] for r in
+                db.query(Message.id)
+                .filter(Message.key == key)
+                .order_by(Message.id.desc())
+                .limit(MAX_HISTORY_PER_KEY)
+                .all()
+            ]
+            if keep_ids:
+                db.query(Message).filter(
+                    Message.key == key,
+                    Message.id.notin_(keep_ids),
+                ).delete()
+            db.commit()
+        finally:
+            db.close()
 
     def get_history(self, key: str) -> list[dict]:
-        return self._get_or_create(key)
+        db = SessionLocal()
+        try:
+            rows = (
+                db.query(Message)
+                .filter(Message.key == key)
+                .order_by(Message.id)
+                .all()
+            )
+            return [{"role": r.role, "content": r.content} for r in rows]
+        finally:
+            db.close()
 
     def build_context(self, key: str) -> str:
         history = self.get_history(key)
@@ -82,23 +103,50 @@ class MemoryService:
         return "\n".join(lines)
 
     def clear(self, key: str):
-        self._stores.pop(key, None)
-        self._save()
+        db = SessionLocal()
+        try:
+            db.query(Message).filter(Message.key == key).delete()
+            db.commit()
+        finally:
+            db.close()
 
     # --- Session management ---
 
     def _session_key(self, session_id: str) -> str:
         return f"_session:{session_id}"
 
+    def _load_sessions(self, db, project: str) -> list[dict]:
+        row = db.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
+        if not row or not isinstance(row.value, dict):
+            return []
+        return row.value.get(project, [])
+
+    def _save_sessions(self, db, project: str, sessions: list[dict]):
+        row = db.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
+        data = row.value if (row and isinstance(row.value, dict)) else {}
+        if sessions:
+            data[project] = sessions
+        else:
+            data.pop(project, None)
+        if row:
+            row.value = data
+            flag_modified(row, "value")
+        else:
+            db.add(Setting(key=SESSION_INDEX_SETTING_KEY, value=data))
+        db.commit()
+
     def _migrate_project_sessions(self, project: str):
-        """Migrate existing project key to a named session once."""
-        index = self._get_or_create(SESSION_INDEX_KEY)
-        sessions = index.get(project, [])
-        existing_ids = {s["id"] for s in sessions}
-        existing_key = project
-        if existing_key in self._stores and existing_key not in existing_ids:
-            msgs = self._stores[existing_key]
-            if msgs:
+        db = SessionLocal()
+        try:
+            sessions = self._load_sessions(db, project)
+            existing_ids = {s["id"] for s in sessions}
+            msgs = (
+                db.query(Message)
+                .filter(Message.key == project)
+                .order_by(Message.id)
+                .all()
+            )
+            if msgs and project not in existing_ids:
                 sid = f"default-{project.replace('/', '_').replace('\\\\', '_')}"
                 sessions.insert(0, {
                     "id": sid,
@@ -106,73 +154,106 @@ class MemoryService:
                     "created_at": datetime.now(timezone.utc).isoformat(),
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                 })
-                self._stores[self._session_key(sid)] = msgs
-                index[project] = sessions
-                self._save()
+                self._save_sessions(db, project, sessions)
+        finally:
+            db.close()
 
     def list_sessions(self, project: str) -> list[dict]:
         self._migrate_project_sessions(project)
-        index = self._get_or_create(SESSION_INDEX_KEY)
-        return index.get(project, [])
+        db = SessionLocal()
+        try:
+            return self._load_sessions(db, project)
+        finally:
+            db.close()
 
     def create_session(self, project: str, name: str = "") -> dict:
-        session_id = uuid.uuid4().hex[:8]
-        now = datetime.now(timezone.utc).isoformat()
-        index = self._get_or_create(SESSION_INDEX_KEY)
-        sessions = index.setdefault(project, [])
-        entry = {
-            "id": session_id,
-            "name": name or f"Session {len(sessions) + 1}",
-            "created_at": now,
-            "updated_at": now,
-        }
-        sessions.append(entry)
-        self._stores[self._session_key(session_id)] = []
-        self._save()
-        return entry
+        db = SessionLocal()
+        try:
+            sessions = self._load_sessions(db, project)
+            session_id = uuid.uuid4().hex[:8]
+            now = datetime.now(timezone.utc).isoformat()
+            entry = {
+                "id": session_id,
+                "name": name or f"Session {len(sessions) + 1}",
+                "created_at": now,
+                "updated_at": now,
+            }
+            sessions.append(entry)
+            self._save_sessions(db, project, sessions)
+            return entry
+        finally:
+            db.close()
 
     def rename_session(self, session_id: str, name: str):
-        index = self._get_or_create(SESSION_INDEX_KEY)
-        for sessions in index.values():
-            for s in sessions:
-                if s["id"] == session_id:
-                    s["name"] = name
-                    s["updated_at"] = datetime.now(timezone.utc).isoformat()
-                    self._save()
-                    return s
-        return None
+        db = SessionLocal()
+        try:
+            row = db.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
+            if not row or not isinstance(row.value, dict):
+                return None
+            data = dict(row.value)
+            for proj_sessions in data.values():
+                for s in proj_sessions:
+                    if s["id"] == session_id:
+                        s["name"] = name
+                        s["updated_at"] = datetime.now(timezone.utc).isoformat()
+                        row.value = data
+                        flag_modified(row, "value")
+                        db.commit()
+                        return s
+            return None
+        finally:
+            db.close()
 
     def delete_session(self, session_id: str):
-        key = self._session_key(session_id)
-        self._stores.pop(key, None)
-        index = self._get_or_create(SESSION_INDEX_KEY)
-        for proj in list(index.keys()):
-            index[proj] = [s for s in index[proj] if s["id"] != session_id]
-            if not index[proj]:
-                del index[proj]
-        self._save()
+        db = SessionLocal()
+        try:
+            db.query(Message).filter(Message.key == self._session_key(session_id)).delete()
+            row = db.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
+            if row and isinstance(row.value, dict):
+                data = dict(row.value)  # copy to trigger SQLAlchemy mutation tracking
+                for proj in list(data.keys()):
+                    data[proj] = [s for s in data[proj] if s["id"] != session_id]
+                    if not data[proj]:
+                        del data[proj]
+                row.value = data
+                flag_modified(row, "value")
+                db.commit()
+        finally:
+            db.close()
 
     def get_session_messages(self, session_id: str) -> list[dict]:
-        return self._get_or_create(self._session_key(session_id))
+        return self.get_history(self._session_key(session_id))
 
     def add_session_message(self, session_id: str, role: str, content: str):
         self.add(self._session_key(session_id), role, content)
         # Update timestamp
-        index = self._get_or_create(SESSION_INDEX_KEY)
-        for sessions in index.values():
-            for s in sessions:
-                if s["id"] == session_id:
-                    s["updated_at"] = datetime.now(timezone.utc).isoformat()
-                    self._save()
-                    return
+        db = SessionLocal()
+        try:
+            row = db.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
+            if row and isinstance(row.value, dict):
+                for proj_sessions in row.value.values():
+                    for s in proj_sessions:
+                        if s["id"] == session_id:
+                            s["updated_at"] = datetime.now(timezone.utc).isoformat()
+                            row.value = row.value  # trigger update
+                            db.commit()
+                            return
+        finally:
+            db.close()
 
 
-def _get_storage_path() -> str:
+# Singleton — se inicializa en startup/lifespan
+memory_service = MemoryService()
+
+# Migrate legacy JSON si existe
+def _init_memory():
     try:
-        from app.core.config import MEMORY_STORAGE_PATH
-        return MEMORY_STORAGE_PATH
-    except ImportError:
-        return ""
+        db = SessionLocal()
+        memory_service._maybe_migrate_from_json(db)
+    except Exception as e:
+        logger.warning("Memory migration skipped: %s", e)
+    finally:
+        db.close()
 
 
-memory_service = MemoryService(storage_path=_get_storage_path())
+_init_memory()

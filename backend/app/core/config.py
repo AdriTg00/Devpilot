@@ -12,7 +12,7 @@ OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
 # CORS — orígenes permitidos (separados por coma en el .env)
 CORS_ORIGINS: list[str] = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:3000,http://localhost:5173,http://localhost:4200",
+    "http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176",
 ).split(",")
 
 # Límites de contexto para el LLM

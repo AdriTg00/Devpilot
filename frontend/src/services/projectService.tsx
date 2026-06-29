@@ -2,8 +2,23 @@ import { api } from "./api";
 import type { ProjectAnalysis } from "../types/Project";
 import type { ProjectFile } from "../types/Files";
 
+export interface UploadResponse {
+  workspace_path: string;
+  analysis: ProjectAnalysis;
+  files: ProjectFile[];
+  files_written: number;
+}
+
 const ENV = import.meta.env.VITE_API_URL;
 const BASE = ENV !== undefined ? ENV : "http://localhost:8000";
+
+export async function uploadProject(
+  name: string,
+  files: Record<string, string>,
+): Promise<UploadResponse> {
+  const response = await api.post("/project/upload", { name, files });
+  return response.data;
+}
 
 export async function analyzeProject(
   path: string
@@ -179,6 +194,36 @@ export async function casualChat(message: string) {
 
 export async function clearChatMemory() {
   const response = await api.post("/chat-clear");
+  return response.data;
+}
+
+export interface SearchMatch {
+  path: string;
+  line: number;
+  content: string;
+}
+
+export interface SearchResponse {
+  matches: SearchMatch[];
+  total: number;
+  truncated: boolean;
+}
+
+export async function searchProject(
+  path: string,
+  query: string,
+  caseSensitive?: boolean,
+): Promise<SearchResponse> {
+  const response = await api.post("/project/search", {
+    path,
+    query,
+    case_sensitive: caseSensitive ?? false,
+  });
+  return response.data;
+}
+
+export async function closeProject(path: string) {
+  const response = await api.post("/project/close", { path });
   return response.data;
 }
 

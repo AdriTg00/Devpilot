@@ -85,7 +85,15 @@ export default function TypingEffect({ text, loading, speed = 25 }: TypingEffect
   }, [loading, target]);
 
   if (loading && !text) {
-    return <CodeSkeleton />;
+    return (
+      <div className="space-y-2">
+        <CodeSkeleton />
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+          Generating…
+        </div>
+      </div>
+    );
   }
 
   /* Rebuild visible text respecting newline positions */

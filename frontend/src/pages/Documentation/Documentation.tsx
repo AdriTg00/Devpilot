@@ -79,11 +79,11 @@ export default function Documentation() {
             transition={{ duration: 0.3 }}
           >
             <Button onClick={handleGenerateDoc} loading={docLoading}>
-              Generate Documentation
+              {docLoading ? "Generating Documentation…" : "Generate Documentation"}
             </Button>
 
             <Button onClick={handleGenerateReadme} loading={readmeLoading} variant="secondary">
-              Generate README
+              {readmeLoading ? "Generating README…" : "Generate README"}
             </Button>
           </motion.div>
 

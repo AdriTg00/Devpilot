@@ -8,6 +8,8 @@ import {
 
 import {
   analyzeProject,
+  uploadProject,
+  closeProject as closeProjectApi,
   getFiles,
   getFileContent,
   explainFileStream,
@@ -62,12 +64,16 @@ interface ProjectContextType {
   explainSelectedFile: () => Promise<void>;
 
   loading: boolean;
+  uploading: boolean;
+  closing: boolean;
   explaining: boolean;
   fileLoading: boolean;
 
   recentProjects: string[];
 
   analyze: () => Promise<void>;
+  uploadAndAnalyze: (name: string, files: Record<string, string>) => Promise<void>;
+  closeProject: () => Promise<void>;
 } 
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -95,6 +101,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const [loading, setLoading] = useState(false);
 
+  const [uploading, setUploading] = useState(false);
+  const [closing, setClosing] = useState(false);
+
   const [explaining, setExplaining] = useState(false);
 
   const [fileLoading, setFileLoading] = useState(false);
@@ -116,6 +125,57 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(FILES_KEY, JSON.stringify(files));
   }, [files]);
+
+  async function uploadAndAnalyze(name: string, files: Record<string, string>) {
+    setUploading(true);
+    try {
+      const data = await uploadProject(name, files);
+      console.log("[upload] response:", data);
+      const workspacePath = data.workspace_path;
+      setCurrentPath(workspacePath);
+
+      const analysisData = {
+        ...data.analysis,
+        projectName: name,
+        projectPath: workspacePath,
+      };
+      console.log("[upload] analysis:", analysisData);
+      setAnalysis(analysisData);
+
+      console.log("[upload] files:", data.files?.length);
+      setFiles(data.files || []);
+      setSelectedFile(null);
+      setFileContent("");
+      setFileExplanation("");
+      saveRecent(workspacePath);
+      setRecentProjects(loadRecent());
+      toast("Proyecto subido y analizado correctamente", "success");
+    } catch (err) {
+      console.error("[upload] error:", err);
+      toast("No se pudo subir el proyecto", "error");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function closeProject() {
+    if (!currentPath) return;
+    setClosing(true);
+    try {
+      await closeProjectApi(currentPath);
+      setCurrentPath("");
+      setAnalysis(null);
+      setFiles([]);
+      setSelectedFile(null);
+      setFileContent("");
+      setFileExplanation("");
+      toast("Proyecto cerrado", "success");
+    } catch {
+      toast("Error al cerrar el proyecto", "error");
+    } finally {
+      setClosing(false);
+    }
+  }
 
   async function analyze() {
     if (!currentPath) return;
@@ -207,12 +267,16 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         explainSelectedFile,
 
         loading,
+        uploading,
+        closing,
         explaining,
         fileLoading,
 
         recentProjects,
 
         analyze,
+        uploadAndAnalyze,
+        closeProject,
       }}
     >
       {children}

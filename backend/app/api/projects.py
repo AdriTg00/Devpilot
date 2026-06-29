@@ -1,4 +1,7 @@
 import logging
+import shutil
+import uuid
+from pathlib import Path
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -12,6 +15,11 @@ from app.models.project import (
     RAGStatusResponse,
     RAGReindexRequest,
     RAGClearRequest,
+    UploadRequest,
+    CloseRequest,
+    SearchRequest,
+    SearchResponse,
+    SearchMatch,
 )
 from app.services.project_service import ProjectService
 from app.services.code_explainer_service import CodeExplainerService
@@ -25,6 +33,77 @@ router = APIRouter(prefix="/project", tags=["project"])
 
 service = ProjectService()
 explainer = CodeExplainerService()
+
+UPLOAD_DIR = Path("temp_uploads")
+
+
+@router.post("/upload")
+def upload_project(request: UploadRequest):
+    workspace_id = str(uuid.uuid4())[:8]
+    base = UPLOAD_DIR / f"{request.name}-{workspace_id}"
+    base.mkdir(parents=True, exist_ok=True)
+
+    written = 0
+    for rel_path, content in request.files.items():
+        file_path = base / rel_path
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(content, encoding="utf-8")
+        written += 1
+
+    workspace_path = str(base.resolve())
+    analysis = service.analyze_project(workspace_path)
+    files = service.get_files(workspace_path)
+    rag_service.index_project(workspace_path, [f["path"] for f in files])
+
+    return {
+        "workspace_path": workspace_path,
+        "analysis": analysis,
+        "files": files,
+        "files_written": written,
+    }
+
+
+@router.post("/close")
+def close_project(request: CloseRequest):
+    path = Path(request.path).resolve()
+    rag_service.clear_project(str(path))
+    memory_service.clear(str(path))
+    if path.exists():
+        shutil.rmtree(path)
+    return {"closed": True}
+
+
+@router.post("/search", response_model=SearchResponse)
+def search_project(request: SearchRequest):
+    validate_directory(request.path)
+    from app.tools.directory_reader import list_files
+
+    files = list_files(request.path)
+    MAX_MATCHES = 100
+    matches: list[dict] = []
+    query = request.query if request.case_sensitive else request.query.lower()
+
+    for filepath in files:
+        try:
+            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                for line_no, line in enumerate(f, 1):
+                    content = line if request.case_sensitive else line.lower()
+                    if query in content:
+                        matches.append({
+                            "path": filepath,
+                            "line": line_no,
+                            "content": line.rstrip("\n\r"),
+                        })
+                        if len(matches) >= MAX_MATCHES:
+                            return SearchResponse(
+                                matches=matches,
+                                total=len(matches),
+                                truncated=True,
+                            )
+        except Exception:
+            continue
+
+    return SearchResponse(matches=matches, total=len(matches), truncated=False)
 
 
 @router.post("/files")

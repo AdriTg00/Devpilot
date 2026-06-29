@@ -54,3 +54,30 @@ class RAGReindexRequest(BaseModel):
 
 class RAGClearRequest(BaseModel):
     path: str = Field(..., min_length=1, description="Ruta al proyecto")
+
+
+class UploadRequest(BaseModel):
+    name: str = Field(..., min_length=1, description="Project name")
+    files: dict[str, str] = Field(..., description="Relative path -> file content mapping")
+
+
+class CloseRequest(BaseModel):
+    path: str = Field(..., min_length=1, description="Ruta al workspace del proyecto")
+
+
+class SearchRequest(BaseModel):
+    path: str = Field(..., min_length=1, description="Ruta al proyecto")
+    query: str = Field(..., min_length=1, description="Texto a buscar")
+    case_sensitive: bool = Field(default=False, description="Busqueda exacta mayus/minus")
+
+
+class SearchMatch(BaseModel):
+    path: str
+    line: int
+    content: str
+
+
+class SearchResponse(BaseModel):
+    matches: list[SearchMatch]
+    total: int
+    truncated: bool

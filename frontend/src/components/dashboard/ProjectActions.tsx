@@ -60,11 +60,11 @@ export default function ProjectActions() {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4">
         <Button onClick={handleSummary} loading={summaryLoading}>
-          AI Summary
+          {summaryLoading ? "Generating Summary…" : "AI Summary"}
         </Button>
 
         <Button onClick={handleExplain} loading={explainLoading} variant="secondary">
-          Explain Project
+          {explainLoading ? "Analyzing Project…" : "Explain Project"}
         </Button>
       </div>
 

@@ -4,6 +4,7 @@ import type { ProjectFile } from "../../types/Files";
 interface TreeNode {
   name: string;
   path: string;
+  relPath: string;
   children: TreeNode[];
   isFile: boolean;
 }
@@ -81,11 +82,18 @@ function DirNode({
   );
 }
 
-function buildTree(files: ProjectFile[]): TreeNode[] {
+function stripRoot(path: string, root: string): string {
+  const normalized = path.replace(/\\/g, "/");
+  const base = root.replace(/\\/g, "/").replace(/\/+$/, "") + "/";
+  return normalized.startsWith(base) ? normalized.slice(base.length) : normalized;
+}
+
+function buildTree(files: ProjectFile[], rootPath?: string): TreeNode[] {
   const root: TreeNode[] = [];
 
   for (const file of files) {
-    const parts = file.path.replace(/\\/g, "/").split("/");
+    const relPath = rootPath ? stripRoot(file.path, rootPath) : file.path.replace(/\\/g, "/");
+    const parts = relPath.split("/");
     let current = root;
 
     for (let i = 0; i < parts.length; i++) {
@@ -93,11 +101,11 @@ function buildTree(files: ProjectFile[]): TreeNode[] {
       const name = parts[i];
 
       if (isLast) {
-        current.push({ name, path: file.path, children: [], isFile: true });
+        current.push({ name, path: file.path, relPath, children: [], isFile: true });
       } else {
         let dir = current.find((n) => !n.isFile && n.name === name);
         if (!dir) {
-          dir = { name, path: parts.slice(0, i + 1).join("/"), children: [], isFile: false };
+          dir = { name, path: "", relPath: parts.slice(0, i + 1).join("/"), children: [], isFile: false };
           current.push(dir);
         }
         current = dir.children;
@@ -112,10 +120,11 @@ interface FileTreeProps {
   files: ProjectFile[];
   selectedFile: ProjectFile | null;
   selectFile: (file: ProjectFile) => void;
+  rootPath?: string;
 }
 
-export default function FileTree({ files, selectedFile, selectFile }: FileTreeProps) {
-  const tree = buildTree(files);
+export default function FileTree({ files, selectedFile, selectFile, rootPath }: FileTreeProps) {
+  const tree = buildTree(files, rootPath);
   return (
     <div className="flex flex-col gap-0.5 max-h-[500px] overflow-y-auto">
       <FileNode nodes={tree} selectedFile={selectedFile} selectFile={selectFile} />

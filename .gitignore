@@ -176,3 +176,6 @@ Thumbs.db
 
 # ChromaDB vector store
 .chroma/
+
+# Temporary uploads
+temp_uploads/

@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
-import { exportProject } from "../../services/projectService";
+import { exportProject, shareProject } from "../../services/projectService";
+import { useToast } from "../../contexts/ToastContext";
 import Card from "../ui/Card";
 
 export default function CurrentProject() {
     const { t } = useLanguage();
+    const { toast } = useToast();
     const { analysis, closeProject, closing, currentPath } = useProject();
     const [exporting, setExporting] = useState(false);
+    const [sharing, setSharing] = useState(false);
+    const [shareLink, setShareLink] = useState<string | null>(null);
 
     if (!analysis)
         return null;
@@ -20,6 +24,26 @@ export default function CurrentProject() {
             /* silent */
         } finally {
             setExporting(false);
+        }
+    }
+
+    async function handleShare() {
+        setSharing(true);
+        setShareLink(null);
+        try {
+            const result = await shareProject(currentPath, 7);
+            setShareLink(result.url);
+        } catch {
+            toast("Error al generar link de compartir", "error");
+        } finally {
+            setSharing(false);
+        }
+    }
+
+    function copyLink() {
+        if (shareLink) {
+            navigator.clipboard.writeText(shareLink);
+            toast("Link copiado al portapapeles", "success");
         }
     }
 
@@ -36,8 +60,26 @@ export default function CurrentProject() {
                     <p className="mt-2 truncate text-slate-500">
                         {analysis.projectPath}
                     </p>
+                    {shareLink && (
+                        <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-3 py-2">
+                            <span className="truncate text-xs text-emerald-300">{shareLink}</span>
+                            <button
+                                onClick={copyLink}
+                                className="shrink-0 rounded-md bg-emerald-700 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-600"
+                            >
+                                Copy
+                            </button>
+                        </div>
+                    )}
                 </div>
                 <div className="flex shrink-0 gap-2">
+                    <button
+                        onClick={handleShare}
+                        disabled={sharing}
+                        className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400 disabled:opacity-50"
+                    >
+                        {sharing ? "..." : "Share"}
+                    </button>
                     <button
                         onClick={handleExport}
                         disabled={exporting}

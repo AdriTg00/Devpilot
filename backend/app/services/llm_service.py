@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import logging
@@ -24,6 +25,10 @@ class LLMProvider:
         raise NotImplementedError
 
     def ask_with_system_stream(self, system: str, user: str, temperature: float | None = None):
+        raise NotImplementedError
+
+    def ask_with_system_tools_stream(self, system: str, user: str, tools: list,
+                                     temperature: float | None = None):
         raise NotImplementedError
 
     @property
@@ -148,6 +153,58 @@ class OllamaProvider(LLMProvider):
     def update_temperature(self, temperature: float):
         self.temperature = temperature
 
+    def ask_with_system_tools_stream(self, system: str, user: str, tools: list,
+                                     temperature: float | None = None):
+        """Streaming chat with tool calling support (Ollama)."""
+        start = time.perf_counter()
+        logger.info("Ollama tools stream started (model=%s)", self.model)
+
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+
+        while True:
+            response = self._ollama.chat(
+                model=self.model,
+                messages=messages,
+                tools=tools,
+                stream=False,
+                options=self._options(temperature),
+            )
+
+            msg = response["message"]
+
+            if msg.get("tool_calls"):
+                for tc in msg["tool_calls"]:
+                    fn = tc.get("function", {})
+                    name = fn.get("name", "")
+                    raw_args = fn.get("arguments", {})
+                    if isinstance(raw_args, str):
+                        try:
+                            raw_args = json.loads(raw_args)
+                        except Exception:
+                            raw_args = {}
+                    yield f"__TOOL__{json.dumps({'type':'tool_call','tool':name,'args':raw_args})}\n"
+
+                    from app.tools.tool_definitions import execute_tool
+                    result = execute_tool(name, raw_args)
+                    yield f"__TOOL__{json.dumps({'type':'tool_result','tool':name,'result':result})}\n"
+
+                    messages.append({"role": "assistant", "content": ""})
+                    messages.append({
+                        "role": "tool",
+                        "content": result,
+                    })
+                continue
+
+            content = msg.get("content", "")
+            elapsed = time.perf_counter() - start
+            logger.info("Ollama tools completed (model=%s, elapsed=%.2fs, chars=%d)",
+                        self.model, elapsed, len(content))
+            yield f"__TOOL__{json.dumps({'type':'done'})}\n"
+            yield content
+            return
 
 
 class GroqProvider(LLMProvider):
@@ -264,6 +321,65 @@ class GroqProvider(LLMProvider):
     def update_temperature(self, temperature: float):
         self.temperature = temperature
 
+    def ask_with_system_tools_stream(self, system: str, user: str, tools: list,
+                                     temperature: float | None = None):
+        """Streaming chat with tool calling (Groq/OpenAI-compatible)."""
+        import json as _json
+
+        start = time.perf_counter()
+        logger.info("Groq tools stream started (model=%s)", self.model)
+
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+
+        try:
+            while True:
+                response = self._client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    tools=tools,
+                    stream=False,
+                    temperature=temperature if temperature is not None else self.temperature,
+                )
+
+                choice = response.choices[0]
+                msg = choice.message
+
+                if msg.tool_calls:
+                    for tc in msg.tool_calls:
+                        name = tc.function.name
+                        try:
+                            raw_args = _json.loads(tc.function.arguments)
+                        except Exception:
+                            raw_args = {}
+                        yield f"__TOOL__{_json.dumps({'type':'tool_call','tool':name,'args':raw_args})}\n"
+
+                        from app.tools.tool_definitions import execute_tool
+                        result = execute_tool(name, raw_args)
+                        yield f"__TOOL__{_json.dumps({'type':'tool_result','tool':name,'result':result})}\n"
+
+                        messages.append({"role": "assistant", "content": msg.content or ""})
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tc.id,
+                            "content": result,
+                        })
+                    continue
+
+                content = msg.content or ""
+                elapsed = time.perf_counter() - start
+                logger.info("Groq tools completed (model=%s, elapsed=%.2fs, chars=%d)",
+                            self.model, elapsed, len(content))
+                yield f"__TOOL__{_json.dumps({'type':'done'})}\n"
+                yield content
+                return
+
+        except self._APIStatusError:
+            logger.warning("Groq error in tools call, falling back to Ollama")
+            yield from OllamaProvider(temperature=temperature or self.temperature).ask_with_system_tools_stream(system, user, tools, temperature)
+
 
 class LLMService:
     def __init__(self):
@@ -311,6 +427,9 @@ class LLMService:
 
     def ask_with_system_stream(self, system: str, user: str):
         yield from self.provider.ask_with_system_stream(system, user)
+
+    def ask_with_system_tools_stream(self, system: str, user: str, tools: list):
+        yield from self.provider.ask_with_system_tools_stream(system, user, tools)
 
     def _build_summary_prompt(self, stats, language: str) -> str:
         return SUMMARIZE_PROJECT_PROMPT.format(

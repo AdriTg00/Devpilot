@@ -211,8 +211,8 @@ export async function getRAGStatus(path?: string): Promise<RAGStatus> {
   return response.data;
 }
 
-export async function reindexProject(path: string): Promise<{ message: string; files: number }> {
-  const response = await api.post("/project/rag-reindex", { path });
+export async function reindexProject(path: string, files?: string[]): Promise<{ message: string; files: number }> {
+  const response = await api.post("/project/rag-reindex", { path, files });
   return response.data;
 }
 
@@ -347,6 +347,104 @@ export function streamCasualChat(
   streamFetch("/chat-stream", { message }, onChunk, onDone, onError);
 }
 
+export interface ToolEvent {
+  type: "tool_call" | "tool_result" | "done";
+  tool?: string;
+  args?: Record<string, unknown>;
+  result?: string;
+}
+
+export function streamToolChat(
+  message: string,
+  projectPath: string,
+  onChunk: (text: string) => void,
+  onToolEvent: (event: ToolEvent) => void,
+  onDone: () => void,
+  onError: (err: Error) => void,
+) {
+  const url = `${BASE}/chat/tool-stream`;
+  const body = JSON.stringify({ message, project_path: projectPath });
+  const TOOL_PREFIX = "__TOOL__";
+
+  try {
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          // process complete tool events
+          while (buffer.includes("\n")) {
+            const nlIdx = buffer.indexOf("\n");
+            const line = buffer.slice(0, nlIdx);
+            buffer = buffer.slice(nlIdx + 1);
+
+            if (line.startsWith(TOOL_PREFIX)) {
+              try {
+                const event: ToolEvent = JSON.parse(line.slice(TOOL_PREFIX.length));
+                onToolEvent(event);
+              } catch {
+                // ignore parse errors
+              }
+            } else {
+              onChunk(line);
+            }
+          }
+        }
+
+        // remaining buffer
+        if (buffer && !buffer.startsWith(TOOL_PREFIX)) {
+          onChunk(buffer);
+        }
+
+        onDone();
+      })
+      .catch((err) => onError(err instanceof Error ? err : new Error(String(err))));
+  } catch (err) {
+    onError(err instanceof Error ? err : new Error(String(err)));
+  }
+}
+
+export interface ShareEntry {
+  token: string;
+  url: string;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface SharedProjectData {
+  token: string;
+  project_name: string;
+  project_path: string;
+  analysis: import("../types/Project").ProjectAnalysis;
+  file_tree: string[];
+  file_count: number;
+  created_at: string;
+  expires_at: string;
+}
+
+export async function shareProject(path: string, expiryDays: number = 7): Promise<ShareEntry> {
+  const response = await api.post("/project/share", { path, expiry_days: expiryDays });
+  return response.data;
+}
+
+export async function getSharedProject(token: string): Promise<SharedProjectData> {
+  const response = await api.get(`/shared/${token}`);
+  return response.data;
+}
+
 export async function analyzeCode(path: string) {
   const response = await api.post("/tools/analyze-file", { path });
   return response.data;
@@ -396,4 +494,34 @@ export async function explainFileStream(
   } catch (error) {
     onError(error instanceof Error ? error : new Error(String(error)));
   }
+}
+
+export interface HealthResponse {
+  status: string;
+  version: string;
+  uptime_seconds: number;
+  settings: {
+    provider: string;
+    model: string;
+    temperature: number;
+    max_tokens: number;
+  };
+  services: {
+    ollama: { reachable: boolean; models: string[]; error: string | null };
+    groq: { configured: boolean; reachable: boolean };
+    rag: Record<string, unknown>;
+    rag_ready: boolean;
+  };
+  storage: {
+    memory_path: string;
+    memory_bytes: number;
+    shares_count: number;
+  };
+  base_url: string;
+}
+
+export async function getHealthDetailed(): Promise<HealthResponse> {
+  const response = await fetch(`${BASE}/health/detailed`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
 }

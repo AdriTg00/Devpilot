@@ -22,3 +22,9 @@ MAX_CONTEXT_CHARS: int = int(os.getenv("MAX_CONTEXT_CHARS", "10000"))
 # Persistencia de memoria conversacional
 MEMORY_STORAGE_PATH: str = os.getenv("MEMORY_STORAGE_PATH", str(Path(__file__).parents[2] / ".memory" / "conversations.json"))
 
+# Compartir proyectos — persistencia
+SHARES_STORAGE_PATH: str = os.getenv("SHARES_STORAGE_PATH", str(Path(__file__).parents[2] / ".memory" / "shares.json"))
+
+# URL base para generar links de sharing (override en produccion)
+BASE_URL: str = os.getenv("BASE_URL", "http://localhost:5173")
+

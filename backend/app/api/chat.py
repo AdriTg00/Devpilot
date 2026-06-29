@@ -4,12 +4,14 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from app.models.chat import (
     ChatRequest,
     ChatResponse,
+    ToolChatRequest,
     CreateSessionRequest,
     RenameSessionRequest,
     SessionEntry,
     SessionMessage,
 )
 from app.services.llm_service import get_llm_service
+from app.tools.tool_definitions import TOOLS
 from app.services.memory_service import memory_service
 
 router = APIRouter(tags=["chat"])
@@ -109,3 +111,43 @@ def rename_session(session_id: str, request: RenameSessionRequest):
 @router.get("/chat/sessions/{session_id}/history", response_model=list[SessionMessage])
 def get_session_history(session_id: str):
     return memory_service.get_session_messages(session_id)
+
+
+# --- Tool-calling chat ---
+
+_TOOL_SYSTEM_PROMPT = (
+    "Eres DevPilot AI, un asistente de desarrollo de software con acceso a herramientas.\n"
+    "Tienes herramientas para leer archivos, buscar codigo y explorar proyectos.\n"
+    "USA LAS HERRAMIENTAS cuando necesites informacion del codigo para responder.\n"
+    "NO inventes rutas o contenido de archivos. Si no tienes un proyecto, dimelo.\n"
+    "Responde siempre en el mismo idioma en que te hablen.\n"
+    "Se conciso y directo."
+)
+
+
+@router.post("/chat/tool-stream")
+def chat_tool_stream(request: ToolChatRequest):
+    system = _TOOL_SYSTEM_PROMPT
+    if request.project_path:
+        system += f"\n\nProyecto activo: {request.project_path}"
+        system += "\nUsa las herramientas para explorar el proyecto cuando sea necesario."
+
+    stream = get_llm_service().ask_with_system_tools_stream(
+        system, request.message, TOOLS
+    )
+
+    def generate():
+        full = ""
+        for chunk in stream:
+            if not chunk.startswith("__TOOL__"):
+                full += chunk
+            yield chunk
+        session_key = request.project_path or _CASUAL_KEY
+        memory_service.add(session_key, "user", request.message)
+        memory_service.add(session_key, "assistant", full)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/plain",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

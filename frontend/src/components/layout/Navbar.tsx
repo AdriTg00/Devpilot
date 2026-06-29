@@ -6,6 +6,7 @@ const linkKeys = [
   { key: "nav.projects", path: "/project" },
   { key: "nav.chat", path: "/chat" },
   { key: "nav.documentation", path: "/documentation" },
+  { key: "nav.health", path: "/health" },
   { key: "nav.settings", path: "/settings" },
 ];
 

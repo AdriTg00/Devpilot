@@ -29,3 +29,9 @@ class SessionEntry(BaseModel):
 class SessionMessage(BaseModel):
     role: str
     content: str
+
+
+class ToolChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, description="Mensaje para el asistente")
+    project_path: str = Field(..., min_length=1, description="Ruta del proyecto activo")
+    session_id: str | None = Field(default=None, description="ID de sesion (opcional)")

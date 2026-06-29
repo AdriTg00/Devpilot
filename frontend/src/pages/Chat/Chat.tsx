@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import {
-  streamProjectQuestion,
   streamSessionChat,
+  streamToolChat,
   clearChatMemory,
   listSessions,
   createSession,
@@ -12,16 +12,25 @@ import {
   getSessionHistory,
   type RAGSource,
   type SessionEntry,
+  type ToolEvent,
 } from "../../services/projectService";
 import Button from "../../components/ui/Button";
 import TypingEffect, { CodeSkeleton } from "../../components/ui/TypingEffect";
 import { useToast } from "../../contexts/ToastContext";
+
+interface ToolCallEntry {
+  tool: string;
+  args: Record<string, unknown>;
+  status: "running" | "done";
+  result?: string;
+}
 
 interface Message {
   id: number;
   role: "user" | "assistant";
   content: string;
   sources?: RAGSource[];
+  toolCalls?: ToolCallEntry[];
 }
 
 let msgId = 0;
@@ -47,9 +56,43 @@ function BotIcon() {
   );
 }
 
+function ToolCallCard({ call }: { call: ToolCallEntry }) {
+  const [open, setOpen] = useState(false);
+  const args = call.args as Record<string, string>;
+  const icon = call.tool === "read_file" ? "📄" : call.tool === "search_code" ? "🔍" : call.tool === "list_files" ? "📁" : "⚙️";
+  const label = call.tool === "read_file" ? `Read ${args.path ?? ""}` : call.tool === "search_code" ? `Search "${args.query ?? ""}"` : call.tool === "list_files" ? `List ${args.path ?? ""}` : call.tool === "get_project_structure" ? "Project structure" : call.tool;
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-700/50 bg-slate-800/30 text-xs">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition hover:bg-slate-700/30"
+      >
+        <span className="shrink-0">{icon}</span>
+        <span className="flex-1 truncate text-slate-300">{label}</span>
+        {call.status === "running" ? (
+          <svg className="h-3.5 w-3.5 animate-spin text-emerald-400" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+        ) : (
+          <svg className={`h-3.5 w-3.5 text-slate-500 transition ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        )}
+      </button>
+      {open && call.result && (
+        <pre className="max-h-48 overflow-auto border-t border-slate-700/50 p-3 text-[11px] text-slate-400">
+          {call.result}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 export default function Chat() {
   const { currentPath, analysis } = useProject();
-  const { language, t } = useLanguage();
+  const { t } = useLanguage();
   const { toast } = useToast();
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -149,7 +192,7 @@ export default function Chat() {
     setLoading(true);
 
     const newId = ++msgId;
-    setMessages((prev) => [...prev, { id: newId, role: "assistant", content: "" }]);
+    setMessages((prev) => [...prev, { id: newId, role: "assistant", content: "", toolCalls: [] }]);
     setTypingId(newId);
 
     const onChunk = (text: string) => {
@@ -157,10 +200,45 @@ export default function Chat() {
         prev.map((m) => (m.id === newId ? { ...m, content: text } : m)),
       );
     };
+
+    const onToolEvent = (event: ToolEvent) => {
+      if (event.type === "tool_call") {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === newId
+              ? {
+                  ...m,
+                  toolCalls: [
+                    ...(m.toolCalls || []),
+                    { tool: event.tool!, args: event.args!, status: "running" as const },
+                  ],
+                }
+              : m,
+          ),
+        );
+      } else if (event.type === "tool_result") {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === newId
+              ? {
+                  ...m,
+                  toolCalls: (m.toolCalls || []).map((tc) =>
+                    tc.tool === event.tool && tc.status === "running"
+                      ? { ...tc, status: "done" as const, result: event.result }
+                      : tc,
+                  ),
+                }
+              : m,
+          ),
+        );
+      }
+    };
+
     const onDone = () => {
       setLoading(false);
       setTimeout(() => setTypingId(null), 3000);
     };
+
     const onError = () => {
       setMessages((prev) =>
         prev.map((m) =>
@@ -172,12 +250,8 @@ export default function Chat() {
       toast("Error al obtener respuesta", "error");
     };
 
-    if (currentPath && activeSession) {
-      streamProjectQuestion(currentPath, question, language, onChunk, onDone, onError, (sources) => {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === newId ? { ...m, sources } : m)),
-        );
-      });
+    if (currentPath) {
+      streamToolChat(question, currentPath, onChunk, onToolEvent, onDone, onError);
     } else if (activeSession) {
       streamSessionChat(question, activeSession, onChunk, onDone, onError);
     } else {
@@ -325,6 +399,13 @@ export default function Chat() {
                 >
                   {msg.role === "assistant" ? (
                     <>
+                      {msg.toolCalls && msg.toolCalls.length > 0 && (
+                        <div className="mb-3 space-y-1.5">
+                          {msg.toolCalls.map((tc, i) => (
+                            <ToolCallCard key={i} call={tc} />
+                          ))}
+                        </div>
+                      )}
                       <TypingEffect
                         text={msg.content}
                         loading={typingId === msg.id}

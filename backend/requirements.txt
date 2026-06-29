@@ -5,3 +5,6 @@ ollama
 python-dotenv
 groq
 chromadb
+pytest
+pytest-cov
+ruff

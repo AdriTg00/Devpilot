@@ -1,0 +1,219 @@
+import { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
+import { getHealthDetailed, type HealthResponse } from "../../services/projectService";
+
+function StatusDot({ ok }: { ok: boolean }) {
+  return (
+    <span
+      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${
+        ok ? "bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+      }`}
+    />
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+      <p className="mb-1 text-[11px] uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="truncate font-mono text-sm text-slate-200">{value}</p>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+      <h3 className="mb-4 text-sm font-semibold text-white">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+}
+
+function formatUptime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+export default function Health() {
+  const [data, setData] = useState<HealthResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchHealth = useCallback(async () => {
+    try {
+      const d = await getHealthDetailed();
+      setData(d);
+      setError(null);
+    } catch {
+      setError("Backend is unreachable");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 10000);
+    return () => clearInterval(interval);
+  }, [fetchHealth]);
+
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <div className="flex items-center gap-3 text-slate-400">
+          <svg className="h-5 w-5 animate-spin text-emerald-400" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          Loading health data...
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="mx-auto max-w-3xl py-12 text-center">
+        <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-red-900/30">
+          <span className="text-3xl">⚠</span>
+        </div>
+        <h2 className="mb-2 text-xl font-bold text-white">Backend Offline</h2>
+        <p className="text-sm text-slate-400">{error || "Could not fetch health data"}</p>
+      </div>
+    );
+  }
+
+  const { settings, services, storage, uptime_seconds, version } = data;
+
+  return (
+    <motion.div
+      className="mx-auto max-w-4xl space-y-6 py-4"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Health Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            DevPilot v{version} &middot; Uptime {formatUptime(uptime_seconds)}
+          </p>
+        </div>
+        <button
+          onClick={() => { setLoading(true); fetchHealth(); }}
+          className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400"
+        >
+          Refresh
+        </button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label="Provider" value={settings.provider} />
+        <StatCard label="Model" value={settings.model} />
+        <StatCard label="Temperature" value={String(settings.temperature)} />
+        <StatCard label="Max Tokens" value={String(settings.max_tokens)} />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Section title="Ollama">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <StatusDot ok={services.ollama.reachable} />
+              <span className="text-sm text-slate-300">
+                {services.ollama.reachable ? "Reachable" : "Unreachable"}
+              </span>
+              {services.ollama.error && (
+                <span className="text-xs text-red-400">{services.ollama.error}</span>
+              )}
+            </div>
+            {services.ollama.models.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-[11px] uppercase tracking-wider text-slate-500">Models</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {services.ollama.models.map((m) => (
+                    <span
+                      key={m}
+                      className="rounded-md bg-slate-800 px-2 py-1 font-mono text-[11px] text-emerald-300"
+                    >
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section title="Groq">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <StatusDot ok={services.groq.configured} />
+              <span className="text-sm text-slate-300">
+                {services.groq.configured ? "API Key configured" : "No API key"}
+              </span>
+            </div>
+            {services.groq.configured && (
+              <div className="flex items-center gap-3">
+                <StatusDot ok={services.groq.reachable} />
+                <span className="text-sm text-slate-300">
+                  {services.groq.reachable ? "Reachable" : "Unreachable"}
+                </span>
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section title="RAG (ChromaDB)">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <StatusDot ok={services.rag_ready} />
+              <span className="text-sm text-slate-300">
+                {services.rag_ready ? "Ready" : "Unavailable"}
+              </span>
+            </div>
+            {services.rag && Object.keys(services.rag).length > 0 && (
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {Object.entries(services.rag).map(([k, v]) => (
+                  <div key={k} className="flex justify-between rounded-lg bg-slate-800/50 px-3 py-1.5">
+                    <span className="text-slate-500">{k}</span>
+                    <span className="text-slate-300">{String(v ?? "—")}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section title="Storage">
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between rounded-lg bg-slate-800/50 px-3 py-2">
+              <span className="text-slate-500">Memory file</span>
+              <span className="text-slate-300 w-40 truncate text-right font-mono">{storage.memory_path}</span>
+            </div>
+            <div className="flex justify-between rounded-lg bg-slate-800/50 px-3 py-2">
+              <span className="text-slate-500">Memory size</span>
+              <span className="text-slate-300">{formatBytes(storage.memory_bytes)}</span>
+            </div>
+            <div className="flex justify-between rounded-lg bg-slate-800/50 px-3 py-2">
+              <span className="text-slate-500">Active shares</span>
+              <span className="text-slate-300">{storage.shares_count}</span>
+            </div>
+          </div>
+        </Section>
+      </div>
+    </motion.div>
+  );
+}

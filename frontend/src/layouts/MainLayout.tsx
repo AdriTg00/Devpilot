@@ -5,6 +5,8 @@ import ErrorBoundary from "../components/error/ErrorBoundary";
 import Navbar from "../components/layout/Navbar";
 import Particles from "../components/effects/Particles";
 import WelcomeHero from "../components/welcome/WelcomeHero";
+import HotkeysHelp from "../components/hotkeys/HotkeysHelp";
+import BackendStatusOverlay from "../components/backend/BackendStatusOverlay";
 import { useWelcome } from "../components/welcome/WelcomeProvider";
 
 const navVariants = {
@@ -66,10 +68,12 @@ export default function MainLayout() {
                   <Outlet />
                 </ErrorBoundary>
               </div>
-            </motion.main>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        </motion.main>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <HotkeysHelp />
+        <BackendStatusOverlay />
+      </div>
   );
 }

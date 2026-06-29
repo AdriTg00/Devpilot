@@ -1,99 +1,119 @@
-import json
+"""Servicio de compartir proyectos con SQLite."""
 import logging
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from app.core.config import SHARES_STORAGE_PATH, BASE_URL
+from sqlalchemy.orm import Session
+
+from app.core.config import BASE_URL
+from app.db.database import SessionLocal
+from app.db.models import Share
 from app.tools.directory_reader import list_files
 from app.services.project_service import project_service
 
 logger = logging.getLogger(__name__)
 
 
-class ShareService:
-    def __init__(self):
-        self._store_path = Path(SHARES_STORAGE_PATH)
-        self._store_path.parent.mkdir(parents=True, exist_ok=True)
-        self._shares: dict[str, dict] = {}
-        self._load()
+def create_share(project_path: str, expiry_days: int = 7) -> dict:
+    path = Path(project_path)
+    if not path.exists():
+        raise ValueError(f"Project path not found: {project_path}")
 
-    def _load(self):
-        if self._store_path.exists():
-            try:
-                data = json.loads(self._store_path.read_text("utf-8"))
-                self._shares = data
-                # purge expired on load
-                now = datetime.utcnow().isoformat()
-                expired = [k for k, v in self._shares.items() if v.get("expires_at", "") < now]
-                for k in expired:
-                    del self._shares[k]
-                if expired:
-                    self._save()
-            except Exception as e:
-                logger.warning("Failed to load shares: %s", e)
+    analysis = project_service.analyze_project(str(path.resolve()))
+    try:
+        files = list_files(str(path.resolve()))
+        file_tree = sorted(str(Path(f).relative_to(path)) for f in files)
+    except Exception as e:
+        logger.warning("Could not list files for share: %s", e)
+        file_tree = []
 
-    def _save(self):
-        self._store_path.write_text(json.dumps(self._shares, indent=2), "utf-8")
+    token = secrets.token_urlsafe(16)
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(days=expiry_days)
 
-    def create_share(self, project_path: str, expiry_days: int = 7) -> dict:
-        path = Path(project_path)
-        if not path.exists():
-            raise ValueError(f"Project path not found: {project_path}")
+    db = SessionLocal()
+    try:
+        entry = Share(
+            token=token,
+            project_name=path.name,
+            project_path=str(path.resolve()),
+            analysis=analysis,
+            file_tree=file_tree,
+            file_count=len(file_tree),
+            created_at=now.isoformat(),
+            expires_at=expires.isoformat(),
+        )
+        db.add(entry)
 
-        # build snapshot
-        analysis = project_service.analyze_project(str(path.resolve()))
-        try:
-            files = list_files(str(path.resolve()))
-            file_tree = sorted(str(Path(f).relative_to(path)) for f in files)
-        except Exception as e:
-            logger.warning("Could not list files for share: %s", e)
-            file_tree = []
+        # purge expired
+        db.query(Share).filter(Share.expires_at < now.isoformat()).delete()
 
-        token = secrets.token_urlsafe(16)
-        created = datetime.utcnow()
-        expires = created + timedelta(days=expiry_days)
-
-        entry = {
-            "token": token,
-            "project_name": path.name,
-            "project_path": str(path.resolve()),
-            "analysis": analysis,
-            "file_tree": file_tree,
-            "file_count": len(file_tree),
-            "created_at": created.isoformat(),
-            "expires_at": expires.isoformat(),
-        }
-
-        self._shares[token] = entry
-        self._save()
+        db.commit()
 
         url = f"{BASE_URL.rstrip('/')}/shared/{token}"
         return {
             "token": token,
             "url": url,
-            "expires_at": entry["expires_at"],
-            "created_at": entry["created_at"],
+            "expires_at": entry.expires_at,
+            "created_at": entry.created_at,
         }
+    finally:
+        db.close()
 
-    def get_share(self, token: str) -> dict | None:
-        entry = self._shares.get(token)
+
+def get_share(token: str) -> dict | None:
+    db = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        entry = db.query(Share).filter(Share.token == token).first()
         if not entry:
             return None
-        # check expiry
-        if entry.get("expires_at", "") < datetime.utcnow().isoformat():
-            del self._shares[token]
-            self._save()
+        if entry.expires_at < now:
+            db.delete(entry)
+            db.commit()
             return None
-        return entry
+        return {
+            "token": entry.token,
+            "project_name": entry.project_name,
+            "project_path": entry.project_path,
+            "analysis": entry.analysis,
+            "file_tree": entry.file_tree,
+            "file_count": entry.file_count,
+            "created_at": entry.created_at,
+            "expires_at": entry.expires_at,
+        }
+    finally:
+        db.close()
 
-    def list_shares(self) -> list[dict]:
-        now = datetime.utcnow().isoformat()
-        valid = []
-        for entry in self._shares.values():
-            if entry.get("expires_at", "") >= now:
-                valid.append(entry)
-        return valid
+
+def list_shares() -> list[dict]:
+    db = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        entries = db.query(Share).filter(Share.expires_at >= now).all()
+        return [
+            {
+                "token": e.token,
+                "project_name": e.project_name,
+                "created_at": e.created_at,
+                "expires_at": e.expires_at,
+            }
+            for e in entries
+        ]
+    finally:
+        db.close()
 
 
-share_service = ShareService()
+class _ShareService:
+    def create_share(self, project_path: str, expiry_days: int = 7):
+        return create_share(project_path, expiry_days)
+
+    def get_share(self, token: str):
+        return get_share(token)
+
+    def list_shares(self):
+        return list_shares()
+
+
+share_service = _ShareService()

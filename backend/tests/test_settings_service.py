@@ -1,94 +1,68 @@
-from pathlib import Path
+"""Tests del servicio de settings con SQLite."""
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.db.models import Base, Setting
+from app.models.settings import Settings
+from app.services.settings_service import SettingsService
 
 
-def test_settings_service_defaults(tmp_path: Path):
-    from app.services.settings_service import SettingsService
+@pytest.fixture
+def svc(monkeypatch, tmp_path):
+    db_path = tmp_path / "test.db"
+    engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=engine)
+    TestSession = sessionmaker(bind=engine)
 
-    path = tmp_path / "settings.json"
-    svc = SettingsService(storage_path=path)
+    import app.services.settings_service as mod
+    monkeypatch.setattr(mod, "SessionLocal", TestSession)
 
-    settings = svc.get()
-    assert settings.provider == "auto"
-    assert settings.ollama_model == "qwen2.5-coder:7b"
-    assert settings.temperature == 0.2
-    assert settings.max_tokens == 4096
-
-
-def test_settings_service_update(tmp_path: Path):
-    from app.services.settings_service import SettingsService
-
-    path = tmp_path / "settings.json"
-    svc = SettingsService(storage_path=path)
-
-    updated = svc.update({"temperature": 0.7, "ollama_model": "llama3"})
-    assert updated.temperature == 0.7
-    assert updated.ollama_model == "llama3"
+    return SettingsService()
 
 
-def test_settings_service_persistence(tmp_path: Path):
-    from app.services.settings_service import SettingsService
+class TestDefaults:
+    def test_defaults(self, svc):
+        s = svc.get()
+        assert s.provider == "auto"
+        assert s.ollama_model == "qwen2.5-coder:7b"
+        assert s.temperature == 0.2
+        assert s.max_tokens == 4096
+        assert s.rag_chunk_lines == 50
+        assert s.rag_overlap_lines == 5
 
-    path = tmp_path / "settings.json"
-    svc1 = SettingsService(storage_path=path)
-    svc1.update({"temperature": 0.9, "provider": "ollama"})
+    def test_update_partial(self, svc):
+        svc.update({"temperature": 0.8, "max_tokens": 2048})
+        s = svc.get()
+        assert s.temperature == 0.8
+        assert s.max_tokens == 2048
+        assert s.provider == "auto"  # unchanged
 
-    svc2 = SettingsService(storage_path=path)
-    settings = svc2.get()
-    assert settings.temperature == 0.9
-    assert settings.provider == "ollama"
+    def test_update_full(self, svc):
+        svc.update({"provider": "ollama", "ollama_model": "llama3:8b", "temperature": 0.5})
+        s = svc.get()
+        assert s.provider == "ollama"
+        assert s.ollama_model == "llama3:8b"
+        assert s.temperature == 0.5
 
+    def test_persistence(self, svc, monkeypatch, tmp_path):
+        svc.update({"temperature": 0.3})
+        # Crear nueva instancia — debe leer del DB
+        svc2 = SettingsService()
+        s2 = svc2.get()
+        assert s2.temperature == 0.3
 
-def test_settings_service_no_file(tmp_path: Path):
-    from app.services.settings_service import SettingsService
+    def test_unknown_field_ignored(self, svc):
+        # Pydantic ignora campos desconocidos por defecto — no deberia crashear
+        svc.update({"nonexistent": 123})
+        assert svc.get().provider == "auto"
 
-    path = tmp_path / "nonexistent" / "settings.json"
-    svc = SettingsService(storage_path=path)
+    def test_groq_model(self, svc):
+        svc.update({"provider": "groq", "groq_model": "balanced"})
+        assert svc.get().groq_model == "balanced"
 
-    settings = svc.get()
-    assert settings.provider == "auto"
-
-
-def test_settings_service_invalid_file(tmp_path: Path):
-    from app.services.settings_service import SettingsService
-
-    path = tmp_path / "settings.json"
-    path.write_text("{invalid", encoding="utf-8")
-
-    svc = SettingsService(storage_path=path)
-    settings = svc.get()
-    assert settings.temperature == 0.2
-
-
-def test_settings_service_update_partial(tmp_path: Path):
-    from app.services.settings_service import SettingsService
-
-    path = tmp_path / "settings.json"
-    svc = SettingsService(storage_path=path)
-    svc.update({"temperature": 0.5, "ollama_model": "llama3"})
-
-    svc2 = SettingsService(storage_path=path)
-    svc2.update({"temperature": 0.8})
-
-    settings = svc2.get()
-    assert settings.temperature == 0.8
-    assert settings.ollama_model == "llama3"
-
-
-def test_settings_service_groq_model(tmp_path: Path):
-    from app.services.settings_service import SettingsService
-
-    path = tmp_path / "settings.json"
-    svc = SettingsService(storage_path=path)
-
-    svc.update({"groq_model": "balanced"})
-    assert svc.get().groq_model == "balanced"
-
-
-def test_settings_service_max_tokens(tmp_path: Path):
-    from app.services.settings_service import SettingsService
-
-    path = tmp_path / "settings.json"
-    svc = SettingsService(storage_path=path)
-
-    svc.update({"max_tokens": 8192})
-    assert svc.get().max_tokens == 8192
+    def test_rag_config(self, svc):
+        svc.update({"rag_chunk_lines": 100, "rag_overlap_lines": 10})
+        s = svc.get()
+        assert s.rag_chunk_lines == 100
+        assert s.rag_overlap_lines == 10

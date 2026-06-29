@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Outlet } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 import ErrorBoundary from "../components/error/ErrorBoundary";
 import Navbar from "../components/layout/Navbar";
@@ -21,20 +22,32 @@ const contentVariants = {
 
 export default function MainLayout() {
   const { welcomed, completeWelcome } = useWelcome();
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   return (
     <div className="flex h-screen flex-col bg-slate-950 text-white">
       <Particles />
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="pointer-events-none fixed inset-0 mx-auto h-full w-full object-contain"
-        style={{ opacity: 0.04, maxWidth: "min(80vw, 800px)" }}
-      >
-        <source src="/DevPilotSinFondo.mp4" type="video/mp4" />
-      </video>
+      {!reducedMotion && (
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="pointer-events-none fixed inset-0 mx-auto h-full w-full object-contain"
+          style={{ opacity: 0.04, maxWidth: "min(80vw, 800px)" }}
+          aria-hidden="true"
+        >
+          <source src="/DevPilotSinFondo.mp4" type="video/mp4" />
+        </video>
+      )}
 
       <AnimatePresence>
         {!welcomed && (

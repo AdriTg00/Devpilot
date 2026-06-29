@@ -35,6 +35,7 @@ export default function Navbar() {
           <NavLink
             key={link.path}
             to={link.path}
+            aria-label={t(link.key)}
             className={({ isActive }) =>
               `whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                 isActive

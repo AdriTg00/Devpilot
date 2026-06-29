@@ -1,6 +1,15 @@
-import { api } from "./api";
+import { api, BASE, ROOT_BASE } from "./api";
 import type { ProjectAnalysis } from "../types/Project";
 import type { ProjectFile } from "../types/Files";
+
+function fetchAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem("devpilot_token");
+  if (!token) return { "Content-Type": "application/json" };
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+}
 
 export interface UploadResponse {
   workspace_path: string;
@@ -9,8 +18,6 @@ export interface UploadResponse {
   files_written: number;
 }
 
-const ENV = import.meta.env.VITE_API_URL;
-const BASE = ENV !== undefined ? ENV : "http://localhost:8000";
 
 export async function uploadProject(
   name: string,
@@ -85,9 +92,9 @@ async function streamFetch(
   onHeaders?: (headers: Headers) => void,
 ) {
   try {
-    const response = await fetch(BASE + url, {
+      const response = await fetch(BASE + url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: fetchAuthHeaders(),
       body: JSON.stringify(body),
     });
 
@@ -270,11 +277,9 @@ export async function closeProject(path: string) {
 }
 
 export async function exportProject(path: string, language: string) {
-  const ENV = import.meta.env.VITE_API_URL;
-  const BASE = ENV !== undefined ? ENV : "http://localhost:8000";
   const response = await fetch(BASE + "/project/export", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: fetchAuthHeaders(),
     body: JSON.stringify({ path, language }),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -369,7 +374,7 @@ export function streamToolChat(
   try {
     fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: fetchAuthHeaders(),
       body,
     })
       .then(async (response) => {
@@ -441,8 +446,9 @@ export async function shareProject(path: string, expiryDays: number = 7): Promis
 }
 
 export async function getSharedProject(token: string): Promise<SharedProjectData> {
-  const response = await api.get(`/shared/${token}`);
-  return response.data;
+  const response = await fetch(`${ROOT_BASE}/shared/${token}`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
 }
 
 export async function analyzeCode(path: string) {
@@ -470,7 +476,7 @@ export async function explainFileStream(
   try {
     const response = await fetch(BASE + "/project/explain-file", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: fetchAuthHeaders(),
       body: JSON.stringify({ path, language }),
     });
 
@@ -521,7 +527,7 @@ export interface HealthResponse {
 }
 
 export async function getHealthDetailed(): Promise<HealthResponse> {
-  const response = await fetch(`${BASE}/health/detailed`);
+  const response = await fetch(`${ROOT_BASE}/health/detailed`);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
 }

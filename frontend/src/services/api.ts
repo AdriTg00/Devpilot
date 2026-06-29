@@ -1,13 +1,28 @@
 import axios from "axios";
 
 const ENV = import.meta.env.VITE_API_URL;
-const BASE = ENV !== undefined ? ENV : "http://localhost:8000";
+const BASE = (ENV !== undefined ? ENV : "http://localhost:8000") + "/api/v1";
+
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem("devpilot_token");
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
+}
 
 export const api = axios.create({
   baseURL: BASE,
   headers: {
     "Content-Type": "application/json",
+    ...getAuthHeaders(),
   },
+});
+
+api.interceptors.request.use((config) => {
+  const headers = getAuthHeaders();
+  for (const [k, v] of Object.entries(headers)) {
+    config.headers.set(k, v);
+  }
+  return config;
 });
 
 export interface Settings {
@@ -32,3 +47,7 @@ export async function updateSettings(updates: Partial<Settings>): Promise<Settin
   const { data } = await api.put("/settings", updates);
   return data;
 }
+
+export { BASE };
+
+export const ROOT_BASE = ENV !== undefined ? ENV : "http://localhost:8000";

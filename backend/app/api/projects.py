@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 from zipfile import ZipFile
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from app.models.project import (
     ProjectRequest,
@@ -29,7 +29,15 @@ from app.services.project_service import ProjectService
 from app.services.code_explainer_service import CodeExplainerService
 from app.services.memory_service import memory_service
 from app.services.rag_service import rag_service
-from app.core.validators import validate_directory, validate_file_path
+from app.core.validators import (
+    validate_directory,
+    validate_file_path,
+    validate_relative_path,
+    assert_project_opened,
+    mark_project_opened,
+    MAX_UPLOAD_FILES,
+    MAX_UPLOAD_FILE_CHARS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,18 +51,32 @@ UPLOAD_DIR = Path("temp_uploads")
 
 @router.post("/upload")
 def upload_project(request: UploadRequest):
+    if len(request.files) > MAX_UPLOAD_FILES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Too many files: {len(request.files)} (max {MAX_UPLOAD_FILES})",
+        )
+
     workspace_id = str(uuid.uuid4())[:8]
     base = UPLOAD_DIR / f"{request.name}-{workspace_id}"
     base.mkdir(parents=True, exist_ok=True)
+    base_resolved = base.resolve()
 
     written = 0
     for rel_path, content in request.files.items():
-        file_path = base / rel_path
+        # Path traversal protection
+        file_path = Path(validate_relative_path(str(base_resolved), rel_path))
+        if len(content) > MAX_UPLOAD_FILE_CHARS:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large: {rel_path} (max {MAX_UPLOAD_FILE_CHARS} chars)",
+            )
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(content, encoding="utf-8")
         written += 1
 
-    workspace_path = str(base.resolve())
+    workspace_path = str(base_resolved)
+    mark_project_opened(workspace_path)
     analysis = service.analyze_project(workspace_path)
     files = service.get_files(workspace_path)
     rag_service.index_project(workspace_path, [f["path"] for f in files])
@@ -70,6 +92,8 @@ def upload_project(request: UploadRequest):
 @router.post("/close")
 def close_project(request: CloseRequest):
     path = Path(request.path).resolve()
+    # Gate: solo se pueden cerrar proyectos previamente abiertos.
+    assert_project_opened(str(path))
     rag_service.clear_project(str(path))
     memory_service.clear(str(path))
     if path.exists():

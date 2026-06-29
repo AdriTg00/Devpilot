@@ -61,6 +61,11 @@ export async function askProjectQuestion(path: string, question: string, languag
   return response.data;
 }
 
+export async function saveFile(path: string, content: string) {
+  const response = await api.post("/project/save-file", { path, content });
+  return response.data;
+}
+
 export async function summarizeProject(path: string, language: string = "en") {
   const response = await api.post("/project/summary", { path, language });
   return response.data;
@@ -77,6 +82,7 @@ async function streamFetch(
   onChunk: (text: string) => void,
   onDone: () => void,
   onError: (err: Error) => void,
+  onHeaders?: (headers: Headers) => void,
 ) {
   try {
     const response = await fetch(BASE + url, {
@@ -88,6 +94,8 @@ async function streamFetch(
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
+
+    onHeaders?.(response.headers);
 
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
@@ -123,8 +131,26 @@ export function streamProjectQuestion(
   onChunk: (text: string) => void,
   onDone: () => void,
   onError: (err: Error) => void,
+  onSources?: (sources: RAGSource[]) => void,
 ) {
-  streamFetch("/project/question-stream", { path, question, language }, onChunk, onDone, onError);
+  streamFetch(
+    "/project/question-stream",
+    { path, question, language },
+    onChunk,
+    onDone,
+    onError,
+    (headers) => {
+      const raw = headers.get("X-RAG-Sources");
+      if (raw) {
+        try {
+          const parsed: RAGSource[] = JSON.parse(raw);
+          onSources?.(parsed);
+        } catch {
+          /* ignore parse errors */
+        }
+      }
+    },
+  );
 }
 
 export function streamExplainProject(
@@ -135,6 +161,16 @@ export function streamExplainProject(
   onError: (err: Error) => void,
 ) {
   streamFetch("/project/explain-project", { path, language }, onChunk, onDone, onError);
+}
+
+export function streamCodeReview(
+  path: string,
+  language: string,
+  onChunk: (text: string) => void,
+  onDone: () => void,
+  onError: (err: Error) => void,
+) {
+  streamFetch("/project/code-review", { path, language }, onChunk, onDone, onError);
 }
 
 export function streamDocumentation(
@@ -150,6 +186,12 @@ export function streamDocumentation(
 export async function generateReadme(path: string, language: string = "en") {
   const response = await api.post("/project/readme", { path, language });
   return response.data;
+}
+
+export interface RAGSource {
+  file: string;
+  line_start: number;
+  snippet: string;
 }
 
 export interface RAGStatus {
@@ -225,6 +267,75 @@ export async function searchProject(
 export async function closeProject(path: string) {
   const response = await api.post("/project/close", { path });
   return response.data;
+}
+
+export async function exportProject(path: string, language: string) {
+  const ENV = import.meta.env.VITE_API_URL;
+  const BASE = ENV !== undefined ? ENV : "http://localhost:8000";
+  const response = await fetch(BASE + "/project/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, language }),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="?(.+?)"?$/);
+  const filename = match?.[1] || `${path.split("\\").pop() || "project"}-export.zip`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export interface SessionEntry {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SessionMessage {
+  role: string;
+  content: string;
+}
+
+export async function listSessions(project: string = "_casual"): Promise<SessionEntry[]> {
+  const response = await api.get("/chat/sessions", { params: { project } });
+  return response.data;
+}
+
+export async function createSession(project: string = "_casual", name: string = ""): Promise<SessionEntry> {
+  const response = await api.post("/chat/sessions", { project, name });
+  return response.data;
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  await api.delete(`/chat/sessions/${sessionId}`);
+}
+
+export async function renameSession(sessionId: string, name: string): Promise<SessionEntry> {
+  const response = await api.put(`/chat/sessions/${sessionId}`, { name });
+  return response.data;
+}
+
+export async function getSessionHistory(sessionId: string): Promise<SessionMessage[]> {
+  const response = await api.get(`/chat/sessions/${sessionId}/history`);
+  return response.data;
+}
+
+export function streamSessionChat(
+  message: string,
+  sessionId: string,
+  onChunk: (text: string) => void,
+  onDone: () => void,
+  onError: (err: Error) => void,
+) {
+  streamFetch("/chat-stream", { message, session_id: sessionId }, onChunk, onDone, onError);
 }
 
 export function streamCasualChat(

@@ -1,8 +1,18 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
-import { streamProjectQuestion, streamCasualChat, clearChatMemory } from "../../services/projectService";
+import {
+  streamProjectQuestion,
+  streamSessionChat,
+  clearChatMemory,
+  listSessions,
+  createSession,
+  deleteSession,
+  getSessionHistory,
+  type RAGSource,
+  type SessionEntry,
+} from "../../services/projectService";
 import Button from "../../components/ui/Button";
 import TypingEffect, { CodeSkeleton } from "../../components/ui/TypingEffect";
 import { useToast } from "../../contexts/ToastContext";
@@ -11,6 +21,7 @@ interface Message {
   id: number;
   role: "user" | "assistant";
   content: string;
+  sources?: RAGSource[];
 }
 
 let msgId = 0;
@@ -45,8 +56,28 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [typingId, setTypingId] = useState<number | null>(null);
+  const [sessions, setSessions] = useState<SessionEntry[]>([]);
+  const [activeSession, setActiveSession] = useState<string | null>(null);
+  const [sessionsOpen, setSessionsOpen] = useState(true);
   const listRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const projectKey = currentPath || "_casual";
+
+  const loadSessions = useCallback(async () => {
+    try {
+      const list = await listSessions(projectKey);
+      setSessions(list);
+    } catch {
+      /* silent */
+    }
+  }, [projectKey]);
+
+  useEffect(() => {
+    loadSessions();
+    setActiveSession(null);
+    setMessages([]);
+  }, [loadSessions]);
 
   useEffect(() => {
     if (listRef.current) {
@@ -56,7 +87,7 @@ export default function Chat() {
 
   useEffect(() => {
     textareaRef.current?.focus();
-  }, []);
+  }, [activeSession]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -65,9 +96,50 @@ export default function Chat() {
     }
   }, [input]);
 
+  async function switchSession(sessionId: string) {
+    setActiveSession(sessionId);
+    setMessages([]);
+    try {
+      const history = await getSessionHistory(sessionId);
+      setMessages(
+        history.map((m) => ({ id: ++msgId, role: m.role as "user" | "assistant", content: m.content })),
+      );
+    } catch {
+      toast("Error loading session", "error");
+    }
+  }
+
+  async function handleNewSession() {
+    try {
+      const session = await createSession(projectKey);
+      setSessions((prev) => [...prev, session]);
+      setActiveSession(session.id);
+      setMessages([]);
+    } catch {
+      toast("Error creating session", "error");
+    }
+  }
+
+  async function handleDeleteSession(sessionId: string) {
+    try {
+      await deleteSession(sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (activeSession === sessionId) {
+        setActiveSession(null);
+        setMessages([]);
+      }
+    } catch {
+      toast("Error deleting session", "error");
+    }
+  }
+
   async function handleSend() {
     const question = input.trim();
     if (!question) return;
+
+    if (!activeSession) {
+      await handleNewSession();
+    }
 
     setInput("");
     if (textareaRef.current) {
@@ -100,11 +172,19 @@ export default function Chat() {
       toast("Error al obtener respuesta", "error");
     };
 
-    if (currentPath) {
-      streamProjectQuestion(currentPath, question, language, onChunk, onDone, onError);
+    if (currentPath && activeSession) {
+      streamProjectQuestion(currentPath, question, language, onChunk, onDone, onError, (sources) => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === newId ? { ...m, sources } : m)),
+        );
+      });
+    } else if (activeSession) {
+      streamSessionChat(question, activeSession, onChunk, onDone, onError);
     } else {
-      streamCasualChat(question, onChunk, onDone, onError);
+      streamSessionChat(question, "", onChunk, onDone, onError);
     }
+
+    loadSessions();
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -115,107 +195,208 @@ export default function Chat() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-12rem)] max-w-4xl flex-col">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{t("chat.title")}</h1>
-          {currentPath && (
-            <p className="mt-1 text-sm text-slate-400">
-              {t("chat.asking_about")} <span className="font-medium text-emerald-400">{analysis?.projectName || currentPath}</span>
-            </p>
+    <div className="mx-auto flex h-[calc(100vh-12rem)] max-w-5xl gap-4">
+      <div
+        className={`flex shrink-0 flex-col transition-all ${
+          sessionsOpen ? "w-56" : "w-10"
+        }`}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            onClick={() => setSessionsOpen(!sessionsOpen)}
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+            title={sessionsOpen ? "Collapse" : "Expand"}
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sessionsOpen ? "M11 19l-7-7 7-7m8 14l-7-7 7-7" : "M13 5l7 7-7 7M5 5l7 7-7 7"} />
+            </svg>
+          </button>
+          {sessionsOpen && (
+            <button
+              onClick={handleNewSession}
+              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-emerald-400"
+              title="New session"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
           )}
         </div>
-        <button
-          onClick={async () => {
-            try {
-              await clearChatMemory();
-              setMessages([]);
-              toast("Historial limpiado", "success");
-            } catch {
-              toast("Error al limpiar historial", "error");
-            }
-          }}
-          className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition hover:border-red-800 hover:text-red-400"
-        >
-          {t("chat.clear")}
-        </button>
-      </div>
 
-      <div
-        ref={listRef}
-        className="flex-1 space-y-4 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/50 p-4"
-      >
-        {messages.length === 0 && (
-          <div className="flex h-full items-center justify-center">
-            <p className="max-w-md text-center text-sm text-slate-500">
-              {currentPath
-                ? t("chat.empty")
-                : t("chat.no_project")}
-            </p>
+        {sessionsOpen && (
+          <div className="flex-1 space-y-1 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/50 p-2">
+            {sessions.length === 0 && (
+              <p className="px-2 py-8 text-center text-xs text-slate-500">
+                No sessions yet
+              </p>
+            )}
+            {sessions.map((s) => (
+              <div
+                key={s.id}
+                className={`group flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 text-xs transition ${
+                  activeSession === s.id
+                    ? "bg-emerald-600/20 text-emerald-300"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                }`}
+                onClick={() => switchSession(s.id)}
+              >
+                <span className="truncate">{s.name}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteSession(s.id);
+                  }}
+                  className="shrink-0 rounded p-0.5 text-slate-600 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
+                  title="Delete"
+                >
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
           </div>
         )}
+      </div>
 
-        <AnimatePresence initial={false}>
-          {messages.map((msg) => (
-            <motion.div
-              key={msg.id}
-              variants={messageVariants}
-              initial="hidden"
-              animate="visible"
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-            >
-              {msg.role === "user" ? <UserIcon /> : <BotIcon />}
-              <div
-                className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
-                  msg.role === "user"
-                    ? "bg-emerald-600/20 text-white"
-                    : "border border-slate-700/50 bg-slate-800/50 text-slate-200"
-                }`}
+      <div className="flex flex-1 flex-col">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">{t("chat.title")}</h1>
+            {currentPath && (
+              <p className="mt-1 text-sm text-slate-400">
+                {t("chat.asking_about")} <span className="font-medium text-emerald-400">{analysis?.projectName || currentPath}</span>
+              </p>
+            )}
+            {activeSession && (
+              <p className="mt-0.5 text-xs text-slate-500">
+                Session: {sessions.find((s) => s.id === activeSession)?.name || activeSession}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={async () => {
+              try {
+                await clearChatMemory();
+                setMessages([]);
+                toast("Historial limpiado", "success");
+              } catch {
+                toast("Error al limpiar historial", "error");
+              }
+            }}
+            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition hover:border-red-800 hover:text-red-400"
+          >
+            {t("chat.clear")}
+          </button>
+        </div>
+
+        <div
+          ref={listRef}
+          className="flex-1 space-y-4 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/50 p-4"
+        >
+          {messages.length === 0 && (
+            <div className="flex h-full items-center justify-center">
+              <p className="max-w-md text-center text-sm text-slate-500">
+                {currentPath
+                  ? t("chat.empty")
+                  : t("chat.no_project")}
+              </p>
+            </div>
+          )}
+
+          <AnimatePresence initial={false}>
+            {messages.map((msg) => (
+              <motion.div
+                key={msg.id}
+                variants={messageVariants}
+                initial="hidden"
+                animate="visible"
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
               >
-                {msg.role === "assistant" ? (
-                  <TypingEffect
-                    text={msg.content}
-                    loading={typingId === msg.id}
-                    speed={25}
-                  />
+                {msg.role === "user" ? <UserIcon /> : <BotIcon />}
+                <div
+                  className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
+                    msg.role === "user"
+                      ? "bg-emerald-600/20 text-white"
+                      : "border border-slate-700/50 bg-slate-800/50 text-slate-200"
+                  }`}
+                >
+                  {msg.role === "assistant" ? (
+                    <>
+                      <TypingEffect
+                        text={msg.content}
+                        loading={typingId === msg.id}
+                        speed={25}
+                      />
+                      {msg.sources && msg.sources.length > 0 && typingId !== msg.id && (
+                        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-700/50 pt-2">
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
+                            Sources:
+                          </span>
+                          {msg.sources.map((src, i) => (
+                            <span
+                              key={i}
+                              className="inline-flex items-center gap-1 rounded-md bg-slate-700/60 px-1.5 py-0.5 text-[11px] text-slate-300"
+                            >
+                              <svg className="h-3 w-3 shrink-0 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              {src.file}:{src.line_start}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {loading && !typingId && (
+            <div className="flex gap-3">
+              <BotIcon />
+              <div className="w-full max-w-md rounded-2xl border border-slate-700/50 bg-slate-800/50 p-4">
+                {currentPath ? (
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <svg className="h-4 w-4 animate-spin text-emerald-400" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Searching project code...
+                  </div>
                 ) : (
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                  <CodeSkeleton />
                 )}
               </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {loading && !typingId && (
-          <div className="flex gap-3">
-            <BotIcon />
-            <div className="w-full max-w-md rounded-2xl border border-slate-700/50 bg-slate-800/50 p-4">
-              <CodeSkeleton />
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
 
-      <div className="mt-4 flex gap-3">
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={t("chat.placeholder")}
-          disabled={loading}
-          rows={1}
-          className="min-h-[48px] flex-1 resize-none rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-500"
-        />
-        <Button
-          onClick={handleSend}
-          loading={loading}
-          disabled={!input.trim()}
-          className="!h-auto !px-6 !py-3"
-        >
-          {t("chat.send")}
-        </Button>
+        <div className="mt-4 flex gap-3">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={t("chat.placeholder")}
+            disabled={loading}
+            rows={1}
+            className="min-h-[48px] flex-1 resize-none rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-500"
+          />
+          <Button
+            onClick={handleSend}
+            loading={loading}
+            disabled={!input.trim()}
+            className="!h-auto !px-6 !py-3"
+          >
+            {t("chat.send")}
+          </Button>
+        </div>
       </div>
     </div>
   );

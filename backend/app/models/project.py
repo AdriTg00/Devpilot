@@ -30,6 +30,11 @@ class FileRequest(BaseModel):
     path: str = Field(..., min_length=1, description="Ruta al archivo")
 
 
+class SaveFileRequest(BaseModel):
+    path: str = Field(..., min_length=1, description="Ruta al archivo")
+    content: str = Field(..., description="Nuevo contenido del archivo")
+
+
 class FileContentResponse(BaseModel):
     path: str
     content: str

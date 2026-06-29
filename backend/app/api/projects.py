@@ -1,7 +1,10 @@
+import io
+import json
 import logging
 import shutil
 import uuid
 from pathlib import Path
+from zipfile import ZipFile
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -17,6 +20,7 @@ from app.models.project import (
     RAGClearRequest,
     UploadRequest,
     CloseRequest,
+    SaveFileRequest,
     SearchRequest,
     SearchResponse,
     SearchMatch,
@@ -169,9 +173,11 @@ def ask_project_question(request: ProjectQuestionRequest):
 
 @router.post("/question-stream")
 def ask_project_question_stream(request: ProjectQuestionRequest):
+    import json
     validate_directory(request.path)
     history = memory_service.build_context(request.path)
     rag_context = rag_service.search(request.question, request.path)
+    rag_sources = rag_service.search_structured(request.question, request.path)
 
     def stream_and_save():
         full = ""
@@ -183,6 +189,20 @@ def ask_project_question_stream(request: ProjectQuestionRequest):
 
     return StreamingResponse(
         stream_and_save(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "X-RAG-Sources": json.dumps(rag_sources),
+        },
+    )
+
+
+@router.post("/code-review")
+def code_review(request: ProjectRequest):
+    validate_directory(request.path)
+    return StreamingResponse(
+        explainer.code_review_stream(request.path, request.language),
         media_type="text/plain",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -209,6 +229,66 @@ def generate_readme(request: ProjectRequest):
 def read_file(request: FileRequest):
     validate_file_path(request.path)
     return service.get_file_content(request.path)
+
+
+@router.post("/save-file")
+def save_file(request: SaveFileRequest):
+    validate_file_path(request.path)
+    from app.tools.file_writer import write_file
+    write_file(request.path, request.content)
+    return {"saved": True, "path": request.path}
+
+
+@router.post("/export")
+def export_project(request: ProjectRequest):
+    validate_directory(request.path)
+    from app.tools.directory_reader import list_files
+
+    project_path = Path(request.path)
+    project_name = project_path.name
+    analysis = service.analyze_project(request.path)
+    files = list_files(request.path)
+
+    buf = io.BytesIO()
+    with ZipFile(buf, "w") as z:
+        z.writestr("analysis.json", json.dumps(analysis, indent=2))
+
+        tree_lines = []
+        for f in files:
+            rel = Path(f).relative_to(project_path)
+            tree_lines.append(str(rel.as_posix()))
+        z.writestr("file-tree.txt", "\n".join(sorted(tree_lines)))
+
+        readme_path = project_path / "README.md"
+        if readme_path.exists():
+            z.write(str(readme_path), "README.md")
+
+        report = f"""# Project Report: {project_name}
+
+## Summary
+- **Files**: {analysis["files"]}
+- **Lines**: {analysis["lines"]}
+- **Functions**: {analysis["functions"]}
+- **Classes**: {analysis["classes"]}
+
+## Languages
+"""
+        for ext, stats in sorted(analysis.get("by_type", {}).items(), key=lambda x: -x[1]["lines"]):
+            report += f"- {ext}: {stats['files']} files, {stats['lines']} lines, {stats['functions']} functions, {stats['classes']} classes\n"
+
+        report += f"\n## File Tree\n\n```\n" + "\n".join(sorted(tree_lines)) + "\n```\n"
+        z.writestr("project-report.md", report)
+
+    buf.seek(0)
+
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{project_name}-export.zip"',
+            "Content-Type": "application/zip",
+        },
+    )
 
 
 @router.get("/rag-status", response_model=RAGStatusResponse)

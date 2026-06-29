@@ -1,8 +1,8 @@
 {
   "provider": "groq",
   "ollama_model": "qwen2.5-coder:7b",
-  "groq_model": "fast",
-  "temperature": 2.0,
+  "groq_model": "code",
+  "temperature": 1.6,
   "max_tokens": 4096,
   "ollama_base_url": "http://localhost:11434",
   "rag_chunk_lines": 50,

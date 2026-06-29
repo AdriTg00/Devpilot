@@ -10,6 +10,7 @@ from app.core.prompts import (
     README_PROMPT,
     EXPLAIN_PROJECT_PROMPT,
     EXPLAIN_FILE_PROMPT,
+    CODE_REVIEW_PROMPT,
     language_instruction,
 )
 
@@ -183,6 +184,15 @@ class CodeExplainerService:
             user += f"\n\nArchivos del proyecto (para referencia):\n{context}"
         yield "\n"
         yield from self.llm.ask_with_system_stream(system, user)
+
+    def code_review_stream(self, project_path: str, language: str = "en"):
+        _, context = self._build_context(project_path, max_chars=2000, max_total=12000)
+        prompt = CODE_REVIEW_PROMPT.format(
+            language_instruction=language_instruction(language),
+            context=context,
+        )
+        yield "\n"
+        yield from self.llm.ask_stream(prompt)
 
     def _build_explain_project_prompt(self, path: str, language: str) -> str:
         _, project_content = self._build_context(path, max_chars=3000, max_total=15000)

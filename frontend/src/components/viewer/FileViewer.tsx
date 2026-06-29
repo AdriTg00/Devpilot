@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx";
@@ -81,10 +82,13 @@ import Card from "../ui/Card";
 import Spinner from "../ui/Spinner";
 import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { saveFile } from "../../services/projectService";
+import { useToast } from "../../contexts/ToastContext";
 import TypingEffect from "../ui/TypingEffect";
 
 export default function FileViewer() {
   const { t } = useLanguage();
+  const { toast } = useToast();
   const {
     selectedFile,
     fileContent,
@@ -92,7 +96,12 @@ export default function FileViewer() {
     explainSelectedFile,
     explaining,
     fileLoading,
+    selectFile,
   } = useProject();
+
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState("");
+  const [saving, setSaving] = useState(false);
 
   if (!selectedFile) {
     return (
@@ -100,7 +109,6 @@ export default function FileViewer() {
         <h2 className="mb-6 text-xl font-semibold">
           {t("viewer.title")}
         </h2>
-
         <p className="text-slate-400">
           {t("viewer.select")}
         </p>
@@ -108,28 +116,88 @@ export default function FileViewer() {
     );
   }
 
+  function startEditing() {
+    setEditContent(fileContent);
+    setEditing(true);
+  }
+
+  function cancelEditing() {
+    setEditing(false);
+    setEditContent("");
+  }
+
+  async function handleSave() {
+    if (!selectedFile) return;
+    setSaving(true);
+    try {
+      await saveFile(selectedFile.path, editContent);
+      await selectFile(selectedFile);
+      setEditing(false);
+      setEditContent("");
+      toast("File saved", "success");
+    } catch {
+      toast("Error saving file", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const ext = selectedFile.name.split(".").pop() ?? "";
+  const lang = extToLang[ext] ?? "typescript";
+
   return (
     <Card>
-
       <div className="mb-6 flex items-center justify-between">
-
-        <h2 className="text-xl font-semibold">
-          {selectedFile.name}
-        </h2>
-
-        <button
-          onClick={explainSelectedFile}
-          disabled={explaining}
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white transition hover:bg-emerald-700 disabled:opacity-50"
-        >
-          {explaining && <Spinner size="sm" />}
-          {explaining ? t("viewer.generating") : t("viewer.explain")}
-        </button>
-
+        <div className="flex items-center gap-3 min-w-0">
+          <h2 className="truncate text-xl font-semibold">
+            {selectedFile.name}
+          </h2>
+          {editing && (
+            <span className="shrink-0 rounded-md bg-emerald-600/20 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
+              EDITING
+            </span>
+          )}
+        </div>
+        <div className="flex shrink-0 gap-2">
+          {editing ? (
+            <>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white transition hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {saving && <Spinner size="sm" />}
+                {saving ? "Saving…" : "Save"}
+              </button>
+              <button
+                onClick={cancelEditing}
+                className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:text-slate-200"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={startEditing}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400"
+              >
+                Edit
+              </button>
+              <button
+                onClick={explainSelectedFile}
+                disabled={explaining}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white transition hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {explaining && <Spinner size="sm" />}
+                {explaining ? t("viewer.generating") : t("viewer.explain")}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-
         <div className="flex min-h-0 flex-col">
           <h3 className="mb-3 text-lg font-semibold">{t("viewer.code")}</h3>
           <div className="max-h-[600px] flex-1 overflow-auto rounded-lg bg-slate-950 p-4">
@@ -137,9 +205,16 @@ export default function FileViewer() {
               <div className="flex h-full items-center justify-center">
                 <Spinner size="lg" className="text-emerald-500" />
               </div>
+            ) : editing ? (
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                spellCheck={false}
+                className="h-full min-h-[400px] w-full resize-none bg-transparent font-mono text-[13px] leading-relaxed text-slate-200 outline-none"
+              />
             ) : (
               <SyntaxHighlighter
-                language={extToLang[selectedFile.name.split(".").pop() ?? ""] ?? "typescript"}
+                language={lang}
                 style={oneDark}
                 customStyle={{ margin: 0, borderRadius: 0, background: "transparent", fontSize: "0.8125rem" }}
                 codeTagProps={{ style: { fontFamily: "inherit" } }}
@@ -160,7 +235,6 @@ export default function FileViewer() {
               </span>
             )}
           </div>
-
           <div className="max-h-[600px] flex-1 overflow-auto rounded-lg border border-slate-700 bg-slate-900 p-4">
             {fileExplanation || explaining ? (
               <TypingEffect text={fileExplanation} loading={explaining} />
@@ -169,9 +243,7 @@ export default function FileViewer() {
             )}
           </div>
         </div>
-
       </div>
-
     </Card>
   );
 }

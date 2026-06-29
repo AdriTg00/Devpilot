@@ -5,6 +5,7 @@ import CurrentProject from "../../components/dashboard/CurrentProject";
 import StatsGrid from "../../components/dashboard/StatsGrid";
 import ProjectActions from "../../components/dashboard/ProjectActions";
 import RAGStatus from "../../components/rag/RAGStatus";
+import CodeReview from "../../components/dashboard/CodeReview";
 import FileExplorer from "../../components/explorer/FileExplorer";
 import FileViewer from "../../components/viewer/FileViewer";
 import RecentProjects from "../../components/dashboard/RecentProjects";
@@ -49,6 +50,9 @@ export default function Project() {
           </motion.div>
           <motion.div variants={fadeUp}>
             <RAGStatus />
+          </motion.div>
+          <motion.div variants={fadeUp}>
+            <CodeReview />
           </motion.div>
         </motion.div>
       )}

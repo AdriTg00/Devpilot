@@ -2,12 +2,15 @@
 import logging
 import os
 import tempfile
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 MAX_HISTORY_PER_KEY = 20
 MAX_HISTORY_CHARS = 4000
+SESSION_INDEX_KEY = "_session_index"
 
 
 class MemoryService:
@@ -81,6 +84,87 @@ class MemoryService:
     def clear(self, key: str):
         self._stores.pop(key, None)
         self._save()
+
+    # --- Session management ---
+
+    def _session_key(self, session_id: str) -> str:
+        return f"_session:{session_id}"
+
+    def _migrate_project_sessions(self, project: str):
+        """Migrate existing project key to a named session once."""
+        index = self._get_or_create(SESSION_INDEX_KEY)
+        sessions = index.get(project, [])
+        existing_ids = {s["id"] for s in sessions}
+        existing_key = project
+        if existing_key in self._stores and existing_key not in existing_ids:
+            msgs = self._stores[existing_key]
+            if msgs:
+                sid = f"default-{project.replace('/', '_').replace('\\\\', '_')}"
+                sessions.insert(0, {
+                    "id": sid,
+                    "name": "Default",
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                })
+                self._stores[self._session_key(sid)] = msgs
+                index[project] = sessions
+                self._save()
+
+    def list_sessions(self, project: str) -> list[dict]:
+        self._migrate_project_sessions(project)
+        index = self._get_or_create(SESSION_INDEX_KEY)
+        return index.get(project, [])
+
+    def create_session(self, project: str, name: str = "") -> dict:
+        session_id = uuid.uuid4().hex[:8]
+        now = datetime.now(timezone.utc).isoformat()
+        index = self._get_or_create(SESSION_INDEX_KEY)
+        sessions = index.setdefault(project, [])
+        entry = {
+            "id": session_id,
+            "name": name or f"Session {len(sessions) + 1}",
+            "created_at": now,
+            "updated_at": now,
+        }
+        sessions.append(entry)
+        self._stores[self._session_key(session_id)] = []
+        self._save()
+        return entry
+
+    def rename_session(self, session_id: str, name: str):
+        index = self._get_or_create(SESSION_INDEX_KEY)
+        for sessions in index.values():
+            for s in sessions:
+                if s["id"] == session_id:
+                    s["name"] = name
+                    s["updated_at"] = datetime.now(timezone.utc).isoformat()
+                    self._save()
+                    return s
+        return None
+
+    def delete_session(self, session_id: str):
+        key = self._session_key(session_id)
+        self._stores.pop(key, None)
+        index = self._get_or_create(SESSION_INDEX_KEY)
+        for proj in list(index.keys()):
+            index[proj] = [s for s in index[proj] if s["id"] != session_id]
+            if not index[proj]:
+                del index[proj]
+        self._save()
+
+    def get_session_messages(self, session_id: str) -> list[dict]:
+        return self._get_or_create(self._session_key(session_id))
+
+    def add_session_message(self, session_id: str, role: str, content: str):
+        self.add(self._session_key(session_id), role, content)
+        # Update timestamp
+        index = self._get_or_create(SESSION_INDEX_KEY)
+        for sessions in index.values():
+            for s in sessions:
+                if s["id"] == session_id:
+                    s["updated_at"] = datetime.now(timezone.utc).isoformat()
+                    self._save()
+                    return
 
 
 def _get_storage_path() -> str:

@@ -230,6 +230,35 @@ class RAGService:
 
         return "\n\n".join(fragments)
 
+    def search_structured(self, query: str, project: str, n_results: int | None = None) -> list[dict]:
+        self._ensure_loaded()
+        if not self._ready:
+            return []
+
+        try:
+            results = self._collection.query(
+                query_texts=[query],
+                n_results=n_results or self.max_results,
+                where={"project": project},
+            )
+        except Exception as e:
+            logger.warning("RAG search error: %s", e)
+            return []
+
+        if not results or not results["documents"] or not results["documents"][0]:
+            return []
+
+        structured = []
+        for i, doc in enumerate(results["documents"][0]):
+            meta = results["metadatas"][0][i] if results["metadatas"] else {}
+            structured.append({
+                "file": meta.get("file", "unknown"),
+                "line_start": meta.get("line_start", 1),
+                "snippet": doc.split("\n")[0] if doc else "",
+            })
+
+        return structured
+
     def clear_project(self, path: str):
         self._ensure_loaded()
         if self._ready:

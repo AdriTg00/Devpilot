@@ -169,3 +169,52 @@ Describe la arquitectura general.
 Describe the overall architecture.
 """
 
+CODE_REVIEW_PROMPT = """
+{language_instruction}
+Eres un Staff Software Engineer realizando una auditoría de código exhaustiva.
+
+Analiza los archivos del proyecto y busca:
+
+1. **POTENTIAL BUGS** — Errores lógicos, condiciones mal manejadas, race conditions, null safety, off-by-one, recursos no cerrados.
+2. **CODE SMELLS** — Funciones largas, duplicated code, nested too deep, magic numbers, dead code, poor naming, falta de tipos.
+3. **SECURITY** — Input sin validar, path traversal, XSS, SQL injection, hardcoded secrets, falta de sanitización.
+4. **PERFORMANCE** — Bucles innecesarios, N+1 queries, memory leaks, falta de lazy loading, bundle size.
+5. **MAINTAINABILITY** — Mala organización, falta de modularidad, acoplamiento excesivo, falta de tests.
+
+Reglas obligatorias:
+- SOLO menciona problemas reales basados en el código proporcionado.
+- NO inventes issues.
+- Por cada issue indica: categoría, archivo, línea aproximada, descripción y sugerencia de fix.
+- Si el proyecto está bien escrito y no hay issues graves, indícalo honestamente.
+- Usa formato Markdown con encabezados por categoría.
+
+Estructura de respuesta:
+
+## Potential Bugs
+
+### [Bug] Descripción breve
+- **File**: `ruta/archivo`
+- **Line**: ~N
+- **Issue**: Explicación del problema
+- **Fix**: Sugerencia de solución
+
+(Repetir por cada issue encontrado)
+
+## Code Smells
+...
+
+## Security
+...
+
+## Performance
+...
+
+## Maintainability
+...
+
+Si una categoría no tiene issues, escribe "Ninguno detectado."
+
+Archivos del proyecto:
+{context}
+"""
+

@@ -13,6 +13,24 @@ GROQ_MODELS = {
     "code": "llama-3.3-70b-specdec",
 }
 
+OPENAI_MODELS = {
+    "fast": "gpt-4o-mini",
+    "balanced": "gpt-4o",
+    "code": "gpt-4.1",
+}
+
+ANTHROPIC_MODELS = {
+    "fast": "claude-3-5-haiku-20241022",
+    "balanced": "claude-3-5-sonnet-20241022",
+    "code": "claude-3-opus-20240229",
+}
+
+GOOGLE_MODELS = {
+    "fast": "gemini-2.0-flash",
+    "balanced": "gemini-1.5-pro",
+    "code": "gemini-1.5-pro",
+}
+
 
 class LLMProvider:
     def ask(self, prompt: str, temperature: float | None = None) -> str:
@@ -207,6 +225,301 @@ class OllamaProvider(LLMProvider):
             return
 
 
+class OpenAIProvider(LLMProvider):
+    """OpenAI provider (gpt-4o, gpt-4o-mini, etc.). Usa la API OpenAI-compatible."""
+
+    def __init__(self, api_key: str, model: str | None = None, temperature: float = 0.2):
+        from openai import OpenAI, APIStatusError
+        self._client = OpenAI(api_key=api_key)
+        self._APIStatusError = APIStatusError
+        model_key = model or os.getenv("OPENAI_MODEL", "fast")
+        self.model = OPENAI_MODELS.get(model_key, OPENAI_MODELS["fast"])
+        self._model_key = model_key
+        self.temperature = temperature
+
+    def _fallback(self, messages: list, temperature: float | None = None) -> str:
+        logger.warning("OpenAI error, falling back to Ollama")
+        ollama = OllamaProvider(temperature=temperature or self.temperature)
+        system = next((m["content"] for m in messages if m["role"] == "system"), "")
+        user = next((m["content"] for m in messages if m["role"] == "user"), "")
+        return ollama.ask_with_system(system, user, temperature)
+
+    def ask(self, prompt: str, temperature: float | None = None) -> str:
+        try:
+            start = time.perf_counter()
+            r = self._client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature or self.temperature,
+            )
+            elapsed = time.perf_counter() - start
+            c = r.choices[0].message.content
+            logger.info("OpenAI completed (model=%s, elapsed=%.2fs, chars=%d)", self.model, elapsed, len(c))
+            return c
+        except self._APIStatusError:
+            return self._fallback([{"role": "user", "content": prompt}], temperature)
+
+    def ask_with_system(self, system: str, user: str, temperature: float | None = None) -> str:
+        try:
+            start = time.perf_counter()
+            r = self._client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                temperature=temperature or self.temperature,
+            )
+            elapsed = time.perf_counter() - start
+            c = r.choices[0].message.content
+            logger.info("OpenAI completed (model=%s, elapsed=%.2fs, chars=%d)", self.model, elapsed, len(c))
+            return c
+        except self._APIStatusError:
+            return self._fallback([{"role": "system", "content": system}, {"role": "user", "content": user}], temperature)
+
+    def ask_stream(self, prompt: str, temperature: float | None = None):
+        start = time.perf_counter()
+        try:
+            stream = self._client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                stream=True,
+                temperature=temperature or self.temperature,
+            )
+        except self._APIStatusError:
+            yield from OllamaProvider(temperature=temperature or self.temperature).ask_stream(prompt, temperature)
+            return
+        total_chars = 0
+        for chunk in stream:
+            c = chunk.choices[0].delta.content or ""
+            if c:
+                total_chars += len(c)
+                yield c
+        logger.info("OpenAI stream completed (model=%s, elapsed=%.2fs, chars=%d)", self.model, time.perf_counter() - start, total_chars)
+
+    def ask_with_system_stream(self, system: str, user: str, temperature: float | None = None):
+        start = time.perf_counter()
+        try:
+            stream = self._client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                stream=True,
+                temperature=temperature or self.temperature,
+            )
+        except self._APIStatusError:
+            yield from OllamaProvider(temperature=temperature or self.temperature).ask_with_system_stream(system, user, temperature)
+            return
+        total_chars = 0
+        for chunk in stream:
+            c = chunk.choices[0].delta.content or ""
+            if c:
+                total_chars += len(c)
+                yield c
+        logger.info("OpenAI stream completed (model=%s, elapsed=%.2fs, chars=%d)", self.model, time.perf_counter() - start, total_chars)
+
+    def ask_with_system_tools_stream(self, system: str, user: str, tools: list, temperature: float | None = None):
+        import json as _json
+        start = time.perf_counter()
+        messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+        try:
+            while True:
+                r = self._client.chat.completions.create(
+                    model=self.model, messages=messages, tools=tools, stream=False,
+                    temperature=temperature or self.temperature,
+                )
+                msg = r.choices[0].message
+                if msg.tool_calls:
+                    for tc in msg.tool_calls:
+                        name = tc.function.name
+                        try:
+                            raw_args = _json.loads(tc.function.arguments)
+                        except Exception:
+                            raw_args = {}
+                        yield f"__TOOL__{_json.dumps({'type':'tool_call','tool':name,'args':raw_args})}\n"
+                        from app.tools.tool_definitions import execute_tool
+                        result = execute_tool(name, raw_args)
+                        yield f"__TOOL__{_json.dumps({'type':'tool_result','tool':name,'result':result})}\n"
+                        messages.append({"role": "assistant", "content": msg.content or ""})
+                        messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
+                    continue
+                c = msg.content or ""
+                logger.info("OpenAI tools completed (model=%s, elapsed=%.2fs)", self.model, time.perf_counter() - start)
+                yield f"__TOOL__{_json.dumps({'type':'done'})}\n"
+                yield c
+                return
+        except self._APIStatusError:
+            yield from OllamaProvider(temperature=temperature or self.temperature).ask_with_system_tools_stream(system, user, tools, temperature)
+
+    @property
+    def model_name(self):
+        return self.model
+
+    def update_model(self, model: str):
+        self._model_key = model
+        self.model = OPENAI_MODELS.get(model, OPENAI_MODELS["fast"])
+
+    def update_temperature(self, temperature: float):
+        self.temperature = temperature
+
+
+class AnthropicProvider(LLMProvider):
+    """Anthropic provider (Claude 3.5 Sonnet, Opus, Haiku)."""
+
+    def __init__(self, api_key: str, model: str | None = None, temperature: float = 0.2):
+        from anthropic import Anthropic, APIStatusError
+        self._client = Anthropic(api_key=api_key)
+        self._APIStatusError = APIStatusError
+        model_key = model or os.getenv("ANTHROPIC_MODEL", "balanced")
+        self.model = ANTHROPIC_MODELS.get(model_key, ANTHROPIC_MODELS["balanced"])
+        self._model_key = model_key
+        self.temperature = temperature
+
+    def _call(self, system: str, messages: list[dict], temperature: float | None = None) -> str:
+        try:
+            start = time.perf_counter()
+            r = self._client.messages.create(
+                model=self.model,
+                system=system or None,
+                messages=messages,
+                max_tokens=4096,
+                temperature=temperature or self.temperature,
+            )
+            elapsed = time.perf_counter() - start
+            c = r.content[0].text if r.content else ""
+            logger.info("Anthropic completed (model=%s, elapsed=%.2fs, chars=%d)", self.model, elapsed, len(c))
+            return c
+        except self._APIStatusError:
+            logger.warning("Anthropic error, falling back to Ollama")
+            ollama = OllamaProvider(temperature=temperature or self.temperature)
+            return ollama.ask_with_system(system, messages[-1]["content"], temperature) if messages else ""
+
+    def ask(self, prompt: str, temperature: float | None = None) -> str:
+        return self._call("", [{"role": "user", "content": prompt}], temperature)
+
+    def ask_with_system(self, system: str, user: str, temperature: float | None = None) -> str:
+        return self._call(system, [{"role": "user", "content": user}], temperature)
+
+    def ask_stream(self, prompt: str, temperature: float | None = None):
+        start = time.perf_counter()
+        try:
+            with self._client.messages.stream(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=4096,
+                temperature=temperature or self.temperature,
+            ) as stream:
+                for text in stream.text_stream:
+                    yield text
+        except self._APIStatusError:
+            yield from OllamaProvider(temperature=temperature or self.temperature).ask_stream(prompt, temperature)
+        logger.info("Anthropic stream completed (model=%s, elapsed=%.2fs)", self.model, time.perf_counter() - start)
+
+    def ask_with_system_stream(self, system: str, user: str, temperature: float | None = None):
+        start = time.perf_counter()
+        try:
+            with self._client.messages.stream(
+                model=self.model,
+                system=system or None,
+                messages=[{"role": "user", "content": user}],
+                max_tokens=4096,
+                temperature=temperature or self.temperature,
+            ) as stream:
+                for text in stream.text_stream:
+                    yield text
+        except self._APIStatusError:
+            yield from OllamaProvider(temperature=temperature or self.temperature).ask_with_system_stream(system, user, temperature)
+        logger.info("Anthropic stream completed (model=%s, elapsed=%.2fs)", self.model, time.perf_counter() - start)
+
+    def ask_with_system_tools_stream(self, system: str, user: str, tools: list, temperature: float | None = None):
+        yield from OllamaProvider(temperature=temperature or self.temperature).ask_with_system_tools_stream(system, user, tools, temperature)
+
+    @property
+    def model_name(self):
+        return self.model
+
+    def update_model(self, model: str):
+        self._model_key = model
+        self.model = ANTHROPIC_MODELS.get(model, ANTHROPIC_MODELS["balanced"])
+
+    def update_temperature(self, temperature: float):
+        self.temperature = temperature
+
+
+class GoogleProvider(LLMProvider):
+    """Google Gemini provider (1.5 Pro, 2.0 Flash)."""
+
+    def __init__(self, api_key: str, model: str | None = None, temperature: float = 0.2):
+        from google import genai
+        self._client = genai.Client(api_key=api_key)
+        model_key = model or os.getenv("GOOGLE_MODEL", "fast")
+        self.model = GOOGLE_MODELS.get(model_key, GOOGLE_MODELS["fast"])
+        self._model_key = model_key
+        self.temperature = temperature
+
+    def _call(self, system: str, user: str, temperature: float | None = None) -> str:
+        try:
+            start = time.perf_counter()
+            r = self._client.models.generate_content(
+                model=self.model,
+                contents=user,
+                config={"system_instruction": system or None, "temperature": temperature or self.temperature},
+            )
+            elapsed = time.perf_counter() - start
+            c = r.text or ""
+            logger.info("Google completed (model=%s, elapsed=%.2fs, chars=%d)", self.model, elapsed, len(c))
+            return c
+        except Exception as e:
+            logger.warning("Google error: %s, falling back to Ollama", e)
+            return OllamaProvider(temperature=temperature or self.temperature).ask_with_system(system, user, temperature)
+
+    def ask(self, prompt: str, temperature: float | None = None) -> str:
+        return self._call("", prompt, temperature)
+
+    def ask_with_system(self, system: str, user: str, temperature: float | None = None) -> str:
+        return self._call(system, user, temperature)
+
+    def ask_stream(self, prompt: str, temperature: float | None = None):
+        start = time.perf_counter()
+        try:
+            r = self._client.models.generate_content_stream(
+                model=self.model,
+                contents=prompt,
+                config={"temperature": temperature or self.temperature},
+            )
+            for chunk in r:
+                if chunk.text:
+                    yield chunk.text
+        except Exception:
+            yield from OllamaProvider(temperature=temperature or self.temperature).ask_stream(prompt, temperature)
+        logger.info("Google stream completed (model=%s, elapsed=%.2fs)", self.model, time.perf_counter() - start)
+
+    def ask_with_system_stream(self, system: str, user: str, temperature: float | None = None):
+        start = time.perf_counter()
+        try:
+            r = self._client.models.generate_content_stream(
+                model=self.model,
+                contents=user,
+                config={"system_instruction": system or None, "temperature": temperature or self.temperature},
+            )
+            for chunk in r:
+                if chunk.text:
+                    yield chunk.text
+        except Exception:
+            yield from OllamaProvider(temperature=temperature or self.temperature).ask_with_system_stream(system, user, temperature)
+        logger.info("Google stream completed (model=%s, elapsed=%.2fs)", self.model, time.perf_counter() - start)
+
+    def ask_with_system_tools_stream(self, system: str, user: str, tools: list, temperature: float | None = None):
+        yield from OllamaProvider(temperature=temperature or self.temperature).ask_with_system_tools_stream(system, user, tools, temperature)
+
+    @property
+    def model_name(self):
+        return self.model
+
+    def update_model(self, model: str):
+        self._model_key = model
+        self.model = GOOGLE_MODELS.get(model, GOOGLE_MODELS["fast"])
+
+    def update_temperature(self, temperature: float):
+        self.temperature = temperature
+
+
 class GroqProvider(LLMProvider):
     def __init__(self, api_key: str, model: str | None = None, temperature: float = 0.2):
         from groq import Groq, APIStatusError
@@ -388,22 +701,30 @@ class LLMService:
     def _detect_provider(self) -> LLMProvider:
         from app.services.settings_service import settings_service
         settings = settings_service.get()
+        openai_key = os.getenv("OPENAI_API_KEY")
+        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        google_key = os.getenv("GOOGLE_API_KEY")
         groq_key = os.getenv("GROQ_API_KEY")
 
+        if settings.provider == "openai" and openai_key:
+            logger.info("Using OpenAI provider")
+            return OpenAIProvider(openai_key, model=settings.provider_model, temperature=settings.temperature)
+
+        if settings.provider == "anthropic" and anthropic_key:
+            logger.info("Using Anthropic provider")
+            return AnthropicProvider(anthropic_key, model=settings.provider_model, temperature=settings.temperature)
+
+        if settings.provider == "google" and google_key:
+            logger.info("Using Google provider")
+            return GoogleProvider(google_key, model=settings.provider_model, temperature=settings.temperature)
+
         if settings.provider == "groq" and groq_key:
-            logger.info("Using Groq provider (from settings)")
+            logger.info("Using Groq provider")
             return GroqProvider(groq_key, model=settings.groq_model, temperature=settings.temperature)
 
-        if settings.provider == "ollama" or not groq_key:
-            logger.info("Using Ollama provider (from settings)")
+        if settings.provider in ("ollama", "auto") or True:
+            logger.info("Using Ollama provider")
             return OllamaProvider(model=settings.ollama_model, temperature=settings.temperature)
-
-        if groq_key:
-            logger.info("Using Groq provider (auto-detect)")
-            return GroqProvider(groq_key, model=settings.groq_model, temperature=settings.temperature)
-
-        logger.info("Using Ollama provider (auto-detect)")
-        return OllamaProvider(model=settings.ollama_model, temperature=settings.temperature)
 
     def reinit(self):
         self.provider = self._detect_provider()
@@ -411,9 +732,14 @@ class LLMService:
     def apply_settings(self):
         from app.services.settings_service import settings_service
         settings = settings_service.get()
-        self.provider.update_model(
-            settings.ollama_model if settings.provider != "groq" else settings.groq_model
-        )
+        model_map = {
+            "ollama": settings.ollama_model,
+            "groq": settings.groq_model,
+            "openai": settings.provider_model,
+            "anthropic": settings.provider_model,
+            "google": settings.provider_model,
+        }
+        self.provider.update_model(model_map.get(settings.provider, settings.ollama_model))
         self.provider.update_temperature(settings.temperature)
 
     def ask(self, prompt: str) -> str:

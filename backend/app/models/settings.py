@@ -2,7 +2,8 @@ from pydantic import BaseModel, Field
 
 
 class Settings(BaseModel):
-    provider: str = Field(default="auto", description="LLM provider: ollama, groq, or auto")
+    provider: str = Field(default="auto", description="LLM provider: ollama, groq, openai, anthropic, google, or auto")
+    provider_model: str = Field(default="fast", description="Model preset for openai/anthropic/google: fast, balanced, code")
     ollama_model: str = Field(default="qwen2.5-coder:7b", description="Ollama model name")
     groq_model: str = Field(default="fast", description="Groq model preset: fast, balanced, or code")
     temperature: float = Field(default=0.2, ge=0.0, le=2.0, description="LLM temperature")

@@ -40,13 +40,21 @@ backend (FastAPI + Python 3.12)
 ### Option 1 — Docker (recommended)
 
 ```bash
-# Set your Groq API key (optional, for cloud LLM)
+# Optional: set Groq API key for cloud LLM
 cp .env.example backend/.env
 # Edit backend/.env with your keys
 
 docker compose up
+# First run: Ollama auto-pulls qwen2.5-coder:7b (~4.7 GB, takes a few minutes)
 # Open http://localhost:3000
 # Login: admin / admin
+```
+
+With NVIDIA GPU (optional, much faster inference):
+```yaml
+# Uncomment the deploy.resources block in docker-compose.yml
+# Then:
+docker compose up
 ```
 
 ### Option 2 — Local dev

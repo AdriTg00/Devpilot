@@ -4,6 +4,9 @@ pydantic
 ollama
 python-dotenv
 groq
+openai
+anthropic
+google-generativeai
 chromadb
 sqlalchemy
 pyjwt

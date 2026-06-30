@@ -12,12 +12,12 @@ const fadeUp = {
   visible: { opacity: 1, y: 0 },
 };
 
-const CATEGORY_META: Record<string, { icon: string; color: string }> = {
-  "Potential Bugs": { icon: "🐛", color: "text-red-400 border-red-800/40" },
-  "Code Smells": { icon: "⚠️", color: "text-amber-400 border-amber-800/40" },
-  "Security": { icon: "🔒", color: "text-orange-400 border-orange-800/40" },
-  "Performance": { icon: "⚡", color: "text-yellow-400 border-yellow-800/40" },
-  "Maintainability": { icon: "📦", color: "text-blue-400 border-blue-800/40" },
+const CATEGORY_META: Record<string, { dot: string; color: string }> = {
+  "Potential Bugs": { dot: "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]", color: "text-red-400 border-red-800/40" },
+  "Code Smells": { dot: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.6)]", color: "text-amber-400 border-amber-800/40" },
+  "Security": { dot: "bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.6)]", color: "text-orange-400 border-orange-800/40" },
+  "Performance": { dot: "bg-yellow-500 shadow-[0_0_6px_rgba(234,179,8,0.6)]", color: "text-yellow-400 border-yellow-800/40" },
+  "Maintainability": { dot: "bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]", color: "text-blue-400 border-blue-800/40" },
 };
 
 export default function CodeReview() {
@@ -44,9 +44,39 @@ export default function CodeReview() {
     );
   }
 
-  const sections = result
-    ? result.split(/(?=^### )/m).filter(Boolean)
+  interface Finding {
+    tag: string;
+    desc: string;
+    file: string;
+    line: string;
+    issue: string;
+    fix: string;
+  }
+
+  const categories = result
+    ? result.split(/(?=^## )/m).filter((s) => s.startsWith("## "))
     : [];
+
+  function parseFindings(body: string): Finding[] {
+    const items = body.split(/(?=^### \[)/m).filter((s) => s.trim());
+    return items.map((item) => {
+      const headerMatch = item.match(/^### \[(.+?)\]\s*(.*)/m);
+      const tag = headerMatch?.[1] || "";
+      const desc = headerMatch?.[2]?.trim() || "";
+      const fileMatch = item.match(/-?\s*\*?\*?File\*?\*?:\s*`?(.+?)`?\s*$/im);
+      const lineMatch = item.match(/-?\s*\*?\*?Line\*?\*?:\s*~?(\d+)?\s*$/im);
+      const issueMatch = item.match(/-?\s*\*?\*?Issue\*?\*?:\s*(.+?)(?=-?\s*\*?\*?Fix\*?\*?:|$)/is);
+      const fixMatch = item.match(/-?\s*\*?\*?Fix\*?\*?:\s*(.+)/is);
+      return {
+        tag,
+        desc,
+        file: fileMatch?.[1]?.trim() || "",
+        line: lineMatch?.[1]?.trim() || "",
+        issue: issueMatch?.[1]?.trim() || "",
+        fix: fixMatch?.[1]?.trim() || "",
+      };
+    });
+  }
 
   return (
     <div className="space-y-4">
@@ -66,13 +96,13 @@ export default function CodeReview() {
           >
             <Card>
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600/20 text-sm">
-                  🔍
+<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600/20">
+                   <span className="h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-white">Code Review</h3>
                   <p className="text-xs text-slate-500">
-                    {loading ? "Analyzing source files…" : `${sections.length} categories reviewed`}
+                    {loading ? "Analyzing source files…" : `${categories.length} categories reviewed`}
                   </p>
                 </div>
               </div>
@@ -89,26 +119,69 @@ export default function CodeReview() {
 
               {result && (
                 <div className="space-y-4">
-                  {sections.map((section, i) => {
-                    const headerMatch = section.match(/^### (.+)/m);
-                    const title = headerMatch?.[1] || "";
-                    const body = section.replace(/^### .+\n*/m, "").trim();
-                    if (!body || body === "Ninguno detectado.") return null;
+                  {categories.map((catRaw, i) => {
+                    const titleMatch = catRaw.match(/^## (.+)/m);
+                    const title = titleMatch?.[1]?.trim() || "";
+                    const body = catRaw.replace(/^## .+\n*/m, "").trim();
+                    if (!body || /ninguno detectado|none detected/i.test(body)) return null;
 
-                    const meta = CATEGORY_META[title] || { icon: "📋", color: "text-slate-400 border-slate-700" };
+                    const meta = CATEGORY_META[title] || { dot: "bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.6)]", color: "text-slate-400 border-slate-700" };
+                    const findings = parseFindings(body);
 
                     return (
                       <div
                         key={i}
                         className={`rounded-xl border ${meta.color} bg-slate-800/40 p-4`}
                       >
-                        <div className="mb-3 flex items-center gap-2">
-                          <span className="text-lg">{meta.icon}</span>
+                        <div className="mb-3 flex items-center gap-2.5">
+                          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${meta.dot}`} />
                           <h4 className="text-sm font-semibold text-white">{title}</h4>
+                          <span className="ml-auto text-[10px] text-slate-500">{findings.length} {findings.length === 1 ? "issue" : "issues"}</span>
                         </div>
-                        <div className="prose prose-invert max-w-none text-xs text-slate-300 [&_code]:rounded [&_code]:bg-slate-700 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[11px] [&_pre]:rounded-lg [&_pre]:bg-slate-900 [&_pre]:p-3">
-                          <TypingEffect text={body} loading={false} speed={5} />
+
+                        {loading && findings.length === 0 && (
+                          <div className="space-y-2 py-2">
+                            <div className="h-2 w-3/4 animate-pulse rounded-full bg-slate-700" />
+                            <div className="h-2 w-1/2 animate-pulse rounded-full bg-slate-700" />
+                          </div>
+                        )}
+
+                        <div className="space-y-3">
+                          {findings.map((f, j) => (
+                            <div key={j} className="rounded-lg bg-slate-900/60 p-3">
+                              <div className="mb-2 flex items-start gap-2">
+                                <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${meta.color} border ${meta.color.split(" ")[1] || "border-slate-700"}`}>
+                                  {f.tag}
+                                </span>
+                                <span className="text-xs font-medium text-slate-200">{f.desc}</span>
+                              </div>
+                              {f.file && (
+                                <p className="mb-1 text-[11px] text-slate-500">
+                                  <span className="text-slate-600">File:</span>{" "}
+                                  <code className="rounded bg-slate-700 px-1 py-0.5 text-emerald-400">{f.file}</code>
+                                  {f.line && <span className="ml-2 text-slate-600">Line: ~{f.line}</span>}
+                                </p>
+                              )}
+                              {f.issue && (
+                                <p className="mb-1.5 text-[11px] leading-relaxed text-slate-400">
+                                  <span className="font-medium text-slate-500">Issue:</span> {f.issue}
+                                </p>
+                              )}
+                              {f.fix && (
+                                <p className="text-[11px] leading-relaxed text-emerald-400/80">
+                                  <span className="font-medium text-emerald-500/60">Fix:</span> {f.fix}
+                                </p>
+                              )}
+                            </div>
+                          ))}
                         </div>
+
+                        {/* fallback: si no se parsearon findings, mostrar como texto */}
+                        {findings.length === 0 && body && (
+                          <div className="prose prose-invert max-w-none text-xs text-slate-300 [&_code]:rounded [&_code]:bg-slate-700 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[11px] [&_pre]:rounded-lg [&_pre]:bg-slate-900 [&_pre]:p-3">
+                            <TypingEffect text={body} loading={loading} speed={5} />
+                          </div>
+                        )}
                       </div>
                     );
                   })}

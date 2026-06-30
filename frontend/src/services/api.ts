@@ -27,6 +27,7 @@ api.interceptors.request.use((config) => {
 
 export interface Settings {
   provider: string;
+  provider_model: string;
   ollama_model: string;
   groq_model: string;
   temperature: number;

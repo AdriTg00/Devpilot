@@ -4,7 +4,7 @@ import { useLanguage } from "../../contexts/LanguageContext";
 import { useToast } from "../../contexts/ToastContext";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
-import { getSettings, updateSettings, type Settings } from "../../services/api";
+import { getSettings, updateSettings, testProviderConnection, type Settings } from "../../services/api";
 
 const stagger = {
   visible: { transition: { staggerChildren: 0.06 } },
@@ -48,6 +48,8 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [testing, setTesting] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string } | null>>({});
 
   useEffect(() => {
     getSettings()
@@ -78,6 +80,34 @@ export default function Settings() {
       toast(t("settings.save_error"), "error");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleTest(provider: string) {
+    if (!settings) return;
+    const keyField = `${provider}_api_key` as keyof Settings;
+    const apiKey = settings[keyField] as string;
+    if (!apiKey) {
+      toast(`Enter an API key for ${provider} first`, "info");
+      return;
+    }
+    setTesting(provider);
+    try {
+      const result = await testProviderConnection(provider, apiKey);
+      setTestResults((prev) => ({ ...prev, [provider]: result }));
+      if (!result.success) {
+        toast(result.message, "error");
+        update("provider", "auto");
+        toast(`Switched to Auto provider`, "info");
+      } else {
+        toast(result.message, "success");
+      }
+    } catch {
+      const fail = { success: false, message: "Connection test failed" };
+      setTestResults((prev) => ({ ...prev, [provider]: fail }));
+      toast("Connection test failed", "error");
+    } finally {
+      setTesting(null);
     }
   }
 
@@ -140,6 +170,58 @@ export default function Settings() {
               );
             })}
           </div>
+
+          {/* ── API Key inputs (for cloud providers that need keys) ── */}
+          {PROVIDERS.filter((p) => p.needsKey).map((p) => (
+            <div
+              key={p.id}
+              className={`mt-3 overflow-hidden transition-all ${
+                provider === p.id ? "max-h-24 opacity-100" : "max-h-0 opacity-0"
+              }`}
+            >
+              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">
+                {p.label} API Key
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={(settings?.[`${p.id}_api_key` as keyof Settings] as string) ?? ""}
+                  onChange={(e) => update(`${p.id}_api_key` as keyof Settings, e.target.value as any)}
+                  placeholder={`sk-... (${p.label} API key)`}
+                  className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
+                />
+                <button
+                  onClick={() => handleTest(p.id)}
+                  disabled={testing === p.id}
+                  className={`shrink-0 rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                    testing === p.id
+                      ? "border-slate-700 bg-slate-800 text-slate-500"
+                      : testResults[p.id]?.success
+                        ? "border-emerald-600 bg-emerald-600/20 text-emerald-400"
+                        : testResults[p.id] && !testResults[p.id].success
+                          ? "border-red-600 bg-red-600/20 text-red-400"
+                          : "border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500"
+                  }`}
+                >
+                  {testing === p.id ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-emerald-400" />
+                  ) : testResults[p.id]?.success ? (
+                    "Connected"
+                  ) : testResults[p.id] && !testResults[p.id].success ? (
+                    "Failed"
+                  ) : (
+                    "Test"
+                  )}
+                </button>
+              </div>
+              {testResults[p.id] && !testResults[p.id].success && (
+                <p className="mt-1 text-xs text-red-400">{testResults[p.id]?.message}</p>
+              )}
+              {testResults[p.id]?.success && (
+                <p className="mt-1 text-xs text-emerald-400">{testResults[p.id]?.message}</p>
+              )}
+            </div>
+          ))}
 
           {/* ── Model preset (only for cloud providers) ── */}
           {isCloud && (

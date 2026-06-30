@@ -35,6 +35,68 @@ function Kbd({ children }: { children: string }) {
   );
 }
 
+function mdToHtml(md: string): string {
+  const parts: string[] = [];
+  const lines = md.split("\n");
+  let inCode = false;
+  let codeLines: string[] = [];
+  let inList = false;
+
+  function flushCode() {
+    if (codeLines.length) {
+      parts.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+      codeLines = [];
+    }
+  }
+
+  function flushList() {
+    if (inList) { parts.push("</ul>"); inList = false; }
+  }
+
+  for (const line of lines) {
+    if (line.startsWith("```")) {
+      if (inCode) { flushCode(); inCode = false; }
+      else { flushList(); inCode = true; }
+      continue;
+    }
+    if (inCode) { codeLines.push(line); continue; }
+
+    if (line.trim() === "") { flushList(); continue; }
+
+    const h1 = line.match(/^# (.+)/);
+    if (h1) { flushList(); parts.push(`<h1>${inlineMd(h1[1])}</h1>`); continue; }
+    const h2 = line.match(/^## (.+)/);
+    if (h2) { flushList(); parts.push(`<h2>${inlineMd(h2[1])}</h2>`); continue; }
+    const h3 = line.match(/^### (.+)/);
+    if (h3) { flushList(); parts.push(`<h3>${inlineMd(h3[1])}</h3>`); continue; }
+
+    const li = line.match(/^[-*]\s+(.+)/);
+    if (li) {
+      if (!inList) { parts.push("<ul>"); inList = true; }
+      parts.push(`<li>${inlineMd(li[1])}</li>`);
+      continue;
+    }
+
+    flushList();
+    parts.push(`<p>${inlineMd(line)}</p>`);
+  }
+
+  flushCode();
+  flushList();
+  return parts.join("\n");
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function inlineMd(text: string): string {
+  return text
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>");
+}
+
 export default function Documentation() {
   const { currentPath } = useProject();
   const { language } = useLanguage();
@@ -81,9 +143,107 @@ export default function Documentation() {
     }
   }
 
+  function handleExportPdf() {
+    if (!documentation) {
+      toast("Generate documentation first", "error");
+      return;
+    }
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast("Allow popups to export PDF", "error");
+      return;
+    }
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>Documentation</title>
+        <style>
+          body { font-family: system-ui, sans-serif; padding: 40px; line-height: 1.8; color: #111; max-width: 800px; margin: 0 auto; }
+          pre { background: #f5f5f5; padding: 16px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; }
+          code { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 13px; background: #f0f0f0; padding: 1px 4px; border-radius: 3px; }
+          pre code { background: none; padding: 0; }
+          h1 { font-size: 26px; margin-top: 32px; margin-bottom: 8px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+          h2 { font-size: 22px; margin-top: 28px; margin-bottom: 6px; }
+          h3 { font-size: 18px; margin-top: 24px; margin-bottom: 4px; }
+          p { margin: 12px 0; }
+          ul { margin: 8px 0; padding-left: 24px; }
+          li { margin: 4px 0; }
+          strong { font-weight: 600; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head>
+      <body>${mdToHtml(documentation)}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 500);
+  }
+
   return (
     <div className="space-y-6 pb-8">
       <h1 className="text-2xl font-bold text-white">Documentation</h1>
+
+      {/* === Project Tools (top) === */}
+      {currentPath && (
+        <>
+          <div className="flex flex-wrap gap-4">
+            <Button onClick={handleGenerateDoc} loading={docLoading}>
+              {docLoading ? "Generating Documentation\u2026" : "Generate Documentation"}
+            </Button>
+            <Button onClick={handleGenerateReadme} loading={readmeLoading} variant="secondary">
+              {readmeLoading ? "Generating README\u2026" : "Generate README"}
+            </Button>
+            {documentation && (
+              <Button onClick={handleExportPdf} variant="secondary">
+                Export PDF
+              </Button>
+            )}
+          </div>
+
+          <AnimatePresence mode="wait">
+            {readmeResult && (
+              <motion.div
+                key="readme"
+                variants={fadeUp}
+                initial="hidden"
+                animate="visible"
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card>
+                  <h2 className="mb-2 text-lg font-semibold text-emerald-400">README generated</h2>
+                  <p className="text-sm text-slate-300">
+                    Path: <code className="text-emerald-400">{readmeResult.readme_path}</code>
+                  </p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {readmeResult.already_existed ? "Overwritten existing file." : "Created new file."}
+                  </p>
+                </Card>
+              </motion.div>
+            )}
+
+            {(docLoading || documentation) && (
+              <motion.div
+                key="doc"
+                variants={fadeUp}
+                initial="hidden"
+                animate="visible"
+                transition={{ duration: 0.3 }}
+              >
+                <Card>
+                  <h2 className="mb-4 text-lg font-semibold text-white">Documentation</h2>
+                  <div className="max-h-[60vh] overflow-y-auto">
+                    <TypingEffect text={documentation} loading={docLoading} />
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <hr className="border-slate-800" />
+        </>
+      )}
 
       {/* === DevPilot Docs === */}
       <DocSection title="About DevPilot">
@@ -186,68 +346,6 @@ export default function Documentation() {
           ))}
         </div>
       </DocSection>
-
-      {/* === Project-specific === */}
-      {currentPath && (
-        <>
-          <hr className="border-slate-800" />
-          <h2 className="text-xl font-bold text-white">Project Tools</h2>
-
-          <motion.div
-            className="flex flex-wrap gap-4"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Button onClick={handleGenerateDoc} loading={docLoading}>
-              {docLoading ? "Generating Documentation\u2026" : "Generate Documentation"}
-            </Button>
-            <Button onClick={handleGenerateReadme} loading={readmeLoading} variant="secondary">
-              {readmeLoading ? "Generating README\u2026" : "Generate README"}
-            </Button>
-          </motion.div>
-
-          <AnimatePresence mode="wait">
-            {readmeResult && (
-              <motion.div
-                key="readme"
-                variants={fadeUp}
-                initial="hidden"
-                animate="visible"
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Card>
-                  <h2 className="mb-2 text-lg font-semibold text-emerald-400">README generated</h2>
-                  <p className="text-sm text-slate-300">
-                    Path: <code className="text-emerald-400">{readmeResult.readme_path}</code>
-                  </p>
-                  <p className="mt-1 text-sm text-slate-400">
-                    {readmeResult.already_existed ? "Overwritten existing file." : "Created new file."}
-                  </p>
-                </Card>
-              </motion.div>
-            )}
-
-            {(docLoading || documentation) && (
-              <motion.div
-                key="doc"
-                variants={fadeUp}
-                initial="hidden"
-                animate="visible"
-                transition={{ duration: 0.3 }}
-              >
-                <Card>
-                  <h2 className="mb-4 text-lg font-semibold text-white">Documentation</h2>
-                  <div className="max-h-[60vh] overflow-y-auto">
-                    <TypingEffect text={documentation} loading={docLoading} />
-                  </div>
-                </Card>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </>
-      )}
     </div>
   );
 }

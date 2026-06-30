@@ -19,16 +19,9 @@ router = APIRouter(tags=["chat"])
 _CASUAL_KEY = "_casual"
 
 _CHAT_SYSTEM_PROMPT = (
-    "You are DevPilot AI, a helpful and knowledgeable software development assistant.\n"
-    "You help developers write, debug, explain, and improve code.\n\n"
-    "Guidelines:\n"
-    "- Be concise and direct. Get to the point.\n"
-    "- Use code blocks with language tags when showing code.\n"
-    "- If the user is asking about a specific project file, reference it by name.\n"
-    "- Answer in the same language the user uses.\n"
-    "- Do not repeat yourself or the user's question.\n"
-    "- Do not include instructions, rules, or meta-commentary in your response.\n"
-    "- If you do not know or cannot determine something, say so honestly."
+    "You are DevPilot AI, a software development assistant.\n"
+    "The user may have a project open — help them with code, questions, or ideas.\n"
+    "Respond naturally in the same language the user uses."
 )
 
 
@@ -120,25 +113,42 @@ def get_session_history(session_id: str):
 # --- Tool-calling chat ---
 
 _TOOL_SYSTEM_PROMPT = (
-    "Eres DevPilot AI, un asistente de desarrollo de software con acceso a herramientas.\n"
-    "Tienes herramientas para leer archivos, buscar codigo y explorar proyectos.\n"
-    "USA LAS HERRAMIENTAS cuando necesites informacion del codigo para responder.\n"
-    "NO inventes rutas o contenido de archivos. Si no tienes un proyecto, dimelo.\n"
-    "Responde siempre en el mismo idioma en que te hablen.\n"
-    "Se conciso y directo."
+    "You are DevPilot AI, a software development assistant with project access.\n"
+    "You have tools to read files, search code, and explore the project.\n"
+    "Use them when you need info to answer. Don't invent file paths or content.\n"
+    "Respond naturally in the same language the user uses."
 )
 
 
 @router.post("/chat/tool-stream")
 def chat_tool_stream(request: ToolChatRequest):
+    llm = get_llm_service()
+
+    # If the provider doesn't support tool calling, use regular stream with project context
+    if not llm.provider.supports_tools:
+        system = _CHAT_SYSTEM_PROMPT
+        if request.project_path:
+            system += f"\n\nThe user's current project is at: {request.project_path}"
+        stream = llm.ask_with_system_stream(system, request.message)
+        def generate():
+            full = ""
+            for chunk in stream:
+                full += chunk
+                yield chunk
+            session_key = request.project_path or _CASUAL_KEY
+            memory_service.add(session_key, "user", request.message)
+            memory_service.add(session_key, "assistant", full)
+        return StreamingResponse(
+            generate(),
+            media_type="text/plain",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
     system = _TOOL_SYSTEM_PROMPT
     if request.project_path:
         system += f"\n\nProyecto activo: {request.project_path}"
-        system += "\nUsa las herramientas para explorar el proyecto cuando sea necesario."
 
-    stream = get_llm_service().ask_with_system_tools_stream(
-        system, request.message, TOOLS
-    )
+    stream = llm.ask_with_system_tools_stream(system, request.message, TOOLS)
 
     def generate():
         full = ""

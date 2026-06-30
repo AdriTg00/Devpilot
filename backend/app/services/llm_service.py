@@ -50,8 +50,16 @@ class LLMProvider:
         raise NotImplementedError
 
     @property
+    def supports_tools(self) -> bool:
+        return False
+
+    @property
     def model_name(self) -> str:
-        return "unknown"
+        return self.model
+
+    @property
+    def supports_tools(self) -> bool:
+        return True
 
     def update_model(self, model: str):
         pass
@@ -351,6 +359,10 @@ class OpenAIProvider(LLMProvider):
     def model_name(self):
         return self.model
 
+    @property
+    def supports_tools(self) -> bool:
+        return True
+
     def update_model(self, model: str):
         self._model_key = model
         self.model = OPENAI_MODELS.get(model, OPENAI_MODELS["fast"])
@@ -627,6 +639,10 @@ class GroqProvider(LLMProvider):
     def model_name(self) -> str:
         return self.model
 
+    @property
+    def supports_tools(self) -> bool:
+        return True
+
     def update_model(self, model: str):
         self._model_key = model
         self.model = GROQ_MODELS.get(model, GROQ_MODELS["fast"])
@@ -701,10 +717,10 @@ class LLMService:
     def _detect_provider(self) -> LLMProvider:
         from app.services.settings_service import settings_service
         settings = settings_service.get()
-        openai_key = os.getenv("OPENAI_API_KEY")
-        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-        google_key = os.getenv("GOOGLE_API_KEY")
-        groq_key = os.getenv("GROQ_API_KEY")
+        openai_key = settings.openai_api_key or os.getenv("OPENAI_API_KEY")
+        anthropic_key = settings.anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
+        google_key = settings.google_api_key or os.getenv("GOOGLE_API_KEY")
+        groq_key = settings.groq_api_key or os.getenv("GROQ_API_KEY")
 
         if settings.provider == "openai" and openai_key:
             logger.info("Using OpenAI provider")

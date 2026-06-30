@@ -38,6 +38,8 @@ export default function HotkeysHelp() {
   useEffect(() => {
     function handler(e: KeyboardEvent) {
       if (e.key === "?" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const target = e.target as HTMLElement;
+        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
         e.preventDefault();
         setOpen(true);
       }

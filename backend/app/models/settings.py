@@ -13,3 +13,7 @@ class Settings(BaseModel):
     rag_overlap_lines: int = Field(default=5, ge=0, le=100, description="Overlap lines between RAG chunks")
     rag_max_chunks_per_file: int = Field(default=20, ge=1, le=200, description="Max chunks per file for RAG")
     rag_max_results: int = Field(default=8, ge=1, le=50, description="Max RAG search results")
+    openai_api_key: str = Field(default="", description="OpenAI API key")
+    anthropic_api_key: str = Field(default="", description="Anthropic API key")
+    google_api_key: str = Field(default="", description="Google/Gemini API key")
+    groq_api_key: str = Field(default="", description="Groq API key")

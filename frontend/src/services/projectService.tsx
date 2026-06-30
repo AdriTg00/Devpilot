@@ -285,11 +285,6 @@ export async function aiFixCode(path: string, issue: string, fixSuggestion: stri
   return response.data;
 }
 
-export async function applyAiFix(path: string, content: string) {
-  const response = await api.post("/project/ai-fix/apply", { path, content });
-  return response.data;
-}
-
 export function streamAiFix(
   path: string,
   issue: string,

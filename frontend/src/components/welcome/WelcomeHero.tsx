@@ -74,7 +74,7 @@ export default function WelcomeHero({ onGetStarted }: Props) {
               />
             ) : (
               <video
-                src="/DevPilotSinFondo.mp4"
+                src="/DevPilotSinFondo2.mp4"
                 autoPlay
                 loop
                 muted

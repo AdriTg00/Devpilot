@@ -276,6 +276,15 @@ export async function closeProject(path: string) {
   return response.data;
 }
 
+export async function aiFixCode(path: string, issue: string, fixSuggestion: string) {
+  const response = await api.post("/project/ai-fix", {
+    path,
+    issue,
+    fix_suggestion: fixSuggestion,
+  });
+  return response.data;
+}
+
 export async function exportProject(path: string, language: string) {
   const response = await fetch(BASE + "/project/export", {
     method: "POST",

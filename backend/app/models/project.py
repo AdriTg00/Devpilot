@@ -86,3 +86,9 @@ class SearchResponse(BaseModel):
     matches: list[SearchMatch]
     total: int
     truncated: bool
+
+
+class AIFixRequest(BaseModel):
+    path: str = Field(..., min_length=1)
+    issue: str = Field(default="")
+    fix_suggestion: str = Field(default="")

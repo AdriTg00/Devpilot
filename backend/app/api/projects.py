@@ -24,11 +24,13 @@ from app.models.project import (
     SearchRequest,
     SearchResponse,
     SearchMatch,
+    AIFixRequest,
 )
 from app.services.project_service import ProjectService
 from app.services.code_explainer_service import CodeExplainerService
 from app.services.memory_service import memory_service
 from app.services.rag_service import rag_service
+from app.services.llm_service import get_llm_service
 from app.core.validators import (
     validate_directory,
     validate_file_path,
@@ -333,3 +335,39 @@ def clear_rag_index(request: RAGClearRequest):
     validate_directory(request.path)
     rag_service.clear_project(request.path)
     return {"message": f"Cleared RAG index for {request.path}"}
+
+
+@router.post("/ai-fix")
+def ai_fix(request: AIFixRequest):
+    validate_file_path(request.path)
+
+    file_path = Path(request.path)
+    original = file_path.read_text(encoding="utf-8", errors="ignore")
+
+    prompt = (
+        "You are a senior software engineer. Fix the following issue in the code.\n"
+        "IMPORTANT: Only fix the specific issue described. Do NOT change anything else.\n"
+        "Do NOT add new features, refactor unrelated code, or change formatting of unchanged lines.\n"
+        "Return ONLY the complete fixed file content. No explanations, no markdown fences.\n\n"
+        f"File: {file_path.name}\n"
+        f"Issue: {request.issue}\n"
+        f"Suggested fix: {request.fix_suggestion}\n\n"
+        f"Original code:\n```\n{original}\n```\n\n"
+        "Fixed code:"
+    )
+
+    llm = get_llm_service()
+    fixed = llm.ask(prompt)
+
+    cleaned = fixed.strip()
+    if cleaned.startswith("```"):
+        cleaned = "\n".join(cleaned.split("\n")[1:])
+    if cleaned.endswith("```"):
+        cleaned = "\n".join(cleaned.split("\n")[:-1])
+    cleaned = cleaned.strip()
+
+    if not cleaned or len(cleaned) < len(original) * 0.3:
+        raise HTTPException(status_code=422, detail="AI fix returned invalid output")
+
+    file_path.write_text(cleaned, encoding="utf-8")
+    return {"fixed": True, "path": request.path}

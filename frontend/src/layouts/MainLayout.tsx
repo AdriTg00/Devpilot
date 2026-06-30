@@ -45,7 +45,7 @@ export default function MainLayout() {
           style={{ opacity: 0.04, maxWidth: "min(80vw, 800px)" }}
           aria-hidden="true"
         >
-          <source src="/DevPilotSinFondo.mp4" type="video/mp4" />
+          <source src="/DevPilotSinFondo2.mp4" type="video/mp4" />
         </video>
       )}
 

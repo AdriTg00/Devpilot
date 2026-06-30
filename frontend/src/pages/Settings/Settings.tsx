@@ -51,7 +51,7 @@ export default function Settings() {
 
   useEffect(() => {
     getSettings()
-      .then(setSettings)
+      .then((s) => setSettings(s))
       .catch(() => toast("Failed to load settings"))
       .finally(() => setLoading(false));
   }, [toast]);
@@ -64,9 +64,16 @@ export default function Settings() {
     if (!settings) return;
     setSaving(true);
     try {
-      const updated = await updateSettings(settings);
-      setSettings(updated);
-      toast(t("settings.saved"), "success");
+      const result = await updateSettings(settings);
+      setSettings(result.settings);
+      // Show warnings as toasts
+      for (const w of result.warnings) {
+        toast(w, "info");
+        // Auto-switch provider display to match what backend actually uses
+      }
+      if (result.warnings.length === 0) {
+        toast(t("settings.saved"), "success");
+      }
     } catch {
       toast(t("settings.save_error"), "error");
     } finally {

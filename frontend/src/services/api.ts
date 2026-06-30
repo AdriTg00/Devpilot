@@ -41,12 +41,12 @@ export interface Settings {
 
 export async function getSettings(): Promise<Settings> {
   const { data } = await api.get("/settings");
-  return data;
+  return data.settings ?? data;
 }
 
-export async function updateSettings(updates: Partial<Settings>): Promise<Settings> {
+export async function updateSettings(updates: Partial<Settings>): Promise<{ settings: Settings; warnings: string[] }> {
   const { data } = await api.put("/settings", updates);
-  return data;
+  return { settings: data.settings ?? data, warnings: data.warnings ?? [] };
 }
 
 export { BASE };

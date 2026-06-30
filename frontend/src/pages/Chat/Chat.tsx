@@ -158,8 +158,10 @@ export default function Chat() {
       setSessions((prev) => [...prev, session]);
       setActiveSession(session.id);
       setMessages([]);
+      return session;
     } catch {
       toast("Error creating session", "error");
+      return null;
     }
   }
 
@@ -180,8 +182,11 @@ export default function Chat() {
     const question = input.trim();
     if (!question) return;
 
-    if (!activeSession) {
-      await handleNewSession();
+    let sessionId = activeSession;
+    if (!sessionId) {
+      const session = await handleNewSession();
+      if (!session) return;
+      sessionId = session.id;
     }
 
     setInput("");
@@ -252,10 +257,8 @@ export default function Chat() {
 
     if (currentPath) {
       streamToolChat(question, currentPath, onChunk, onToolEvent, onDone, onError);
-    } else if (activeSession) {
-      streamSessionChat(question, activeSession, onChunk, onDone, onError);
     } else {
-      streamSessionChat(question, "", onChunk, onDone, onError);
+      streamSessionChat(question, sessionId, onChunk, onDone, onError);
     }
 
     loadSessions();

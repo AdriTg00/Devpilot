@@ -60,6 +60,7 @@ interface ProjectContextType {
 
   recentProjects: string[];
   previousPath: string;
+  clearRecentProjects: () => void;
 
   analyze: () => Promise<void>;
   uploadAndAnalyze: (name: string, files: Record<string, string>) => Promise<void>;
@@ -145,6 +146,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     } finally {
       setClosing(false);
     }
+  }
+
+  function clearRecentProjects() {
+    localStorage.removeItem(RECENT_KEY);
+    setRecentProjects([]);
   }
 
   async function resumeProject() {
@@ -249,6 +255,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
         recentProjects,
         previousPath,
+        clearRecentProjects,
 
         analyze,
         uploadAndAnalyze,

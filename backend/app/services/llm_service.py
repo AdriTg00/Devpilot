@@ -21,8 +21,8 @@ OPENAI_MODELS = {
 
 ANTHROPIC_MODELS = {
     "fast": "claude-3-5-haiku-20241022",
-    "balanced": "claude-3-5-sonnet-20241022",
-    "code": "claude-3-opus-20240229",
+    "balanced": "claude-sonnet-4-6",
+    "code": "claude-sonnet-4-6",
 }
 
 GOOGLE_MODELS = {

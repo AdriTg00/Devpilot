@@ -1,12 +1,19 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useToast } from "../../contexts/ToastContext";
-import { streamCodeReview, aiFixCode } from "../../services/projectService";
+import { streamCodeReview, streamAiFix, applyAiFix } from "../../services/projectService";
 import Card from "../ui/Card";
 import Button from "../ui/Button";
 import TypingEffect from "../ui/TypingEffect";
+
+interface PendingFix {
+  key: string;
+  file: string;
+  content: string;
+  original: string;
+}
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -28,7 +35,11 @@ export default function CodeReview() {
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
-  const [fixingFile, setFixingFile] = useState<string | null>(null);
+  const [fixingKey, setFixingKey] = useState<string | null>(null);
+  const [fixingStream, setFixingStream] = useState("");
+  const [pendingFix, setPendingFix] = useState<PendingFix | null>(null);
+  const [applying, setApplying] = useState(false);
+  const pendingFixRef = useRef<PendingFix | null>(null);
 
   if (!analysis || !currentPath) return null;
 
@@ -47,16 +58,41 @@ export default function CodeReview() {
     );
   }
 
-  async function handleAIFix(fileRel: string, issue: string, fix: string) {
+  async function handleAIFix(fileRel: string, issue: string, fix: string, key: string) {
     const fullPath = fileRel.includes(":") ? fileRel : `${currentPath}\\${fileRel.replace(/\//g, "\\")}`;
-    setFixingFile(fileRel);
+    setFixingKey(key);
+    setFixingStream("");
+    setPendingFix(null);
+
+    streamAiFix(
+      fullPath, issue, fix,
+      (text) => setFixingStream(text),
+      (fixedContent) => {
+        const fix: PendingFix = { key, file: fullPath, content: fixedContent, original: "" };
+        pendingFixRef.current = fix;
+        setPendingFix(fix);
+        setFixingKey(null);
+      },
+      () => {
+        toast(`Failed to fix: ${fileRel}`, "error");
+        setFixingKey(null);
+      },
+    );
+  }
+
+  async function handleAcceptFix() {
+    const fix = pendingFixRef.current;
+    if (!fix) return;
+    setApplying(true);
     try {
-      await aiFixCode(fullPath, issue, fix);
-      toast(`Fixed: ${fileRel}`, "success");
+      await applyAiFix(fix.file, fix.content);
+      toast("Fix applied", "success");
+      pendingFixRef.current = null;
+      setPendingFix(null);
     } catch {
-      toast(`Failed to fix: ${fileRel}`, "error");
+      toast("Failed to apply fix", "error");
     } finally {
-      setFixingFile(null);
+      setApplying(false);
     }
   }
 
@@ -163,8 +199,10 @@ export default function CodeReview() {
                         )}
 
                         <div className="space-y-3">
-                          {findings.map((f, j) => (
-                            <div key={j} className="rounded-lg bg-slate-900/60 p-3">
+                          {findings.map((f, j) => {
+                            const findingKey = `${i}-${j}`;
+                            return (
+                            <div key={findingKey} className="rounded-lg bg-slate-900/60 p-3">
                               <div className="mb-2 flex items-start gap-2">
                                 <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${meta.color} border ${meta.color.split(" ")[1] || "border-slate-700"}`}>
                                   {f.tag}
@@ -191,11 +229,11 @@ export default function CodeReview() {
                               {f.file && (
                                 <div className="mt-2 flex justify-end">
                                   <button
-                                    onClick={() => handleAIFix(f.file, f.issue, f.fix)}
-                                    disabled={fixingFile === f.file}
+                                    onClick={() => handleAIFix(f.file, f.issue, f.fix, findingKey)}
+                                    disabled={fixingKey === findingKey}
                                     className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600/20 px-2 py-1 text-[10px] font-medium text-emerald-400 transition hover:bg-emerald-600/30 disabled:opacity-50"
                                   >
-                                    {fixingFile === f.file ? (
+                                    {fixingKey === findingKey ? (
                                       <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -209,8 +247,65 @@ export default function CodeReview() {
                                   </button>
                                 </div>
                               )}
+
+                              {/* Fix streaming — right below this finding */}
+                              {fixingKey === findingKey && (
+                                <div className="mt-3 rounded-lg border border-emerald-700/30 bg-slate-900/80 p-3">
+                                  <div className="mb-2 flex items-center gap-2.5">
+                                    <svg className="h-3.5 w-3.5 animate-spin text-emerald-400" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    </svg>
+                                    <span className="text-xs text-slate-400">Generating fix...</span>
+                                  </div>
+                                  <pre className="max-h-32 overflow-auto rounded bg-slate-950 p-2 text-[10px] leading-relaxed text-slate-500">
+                                    {fixingStream || "Waiting for AI..."}
+                                  </pre>
+                                </div>
+                              )}
+
+                              {/* Fix result — Accept/Reject */}
+                              {pendingFix && pendingFix.key === findingKey && (
+                                <div className="mt-3 rounded-lg border border-emerald-700/30 bg-slate-900/80 p-3">
+                                  <div className="mb-2 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+                                      <span className="text-xs font-medium text-white">Fix ready</span>
+                                    </div>
+                                    <div className="flex gap-1.5">
+                                      <button
+                                        onClick={handleAcceptFix}
+                                        disabled={applying}
+                                        className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                                      >
+                                        {applying ? (
+                                          <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                          </svg>
+                                        ) : (
+                                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        )}
+                                        Accept
+                                      </button>
+                                      <button
+                                        onClick={() => { pendingFixRef.current = null; setPendingFix(null); }}
+                                        className="rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-400 transition hover:border-red-800 hover:text-red-400"
+                                      >
+                                        Reject
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <pre className="max-h-40 overflow-auto rounded bg-slate-950 p-2 text-[10px] leading-relaxed text-emerald-300">
+                                    {pendingFix.content}
+                                  </pre>
+                                </div>
+                              )}
                             </div>
-                          ))}
+                          );
+                          })}
                         </div>
 
                         {/* fallback: si no se parsearon findings, mostrar como texto */}

@@ -25,6 +25,7 @@ from app.models.project import (
     SearchResponse,
     SearchMatch,
     AIFixRequest,
+    AIFixApplyRequest,
 )
 from app.services.project_service import ProjectService
 from app.services.code_explainer_service import CodeExplainerService
@@ -357,17 +358,45 @@ def ai_fix(request: AIFixRequest):
     )
 
     llm = get_llm_service()
-    fixed = llm.ask(prompt)
 
-    cleaned = fixed.strip()
+    def generate():
+        full = ""
+        for chunk in llm.ask_stream(prompt):
+            full += chunk
+            yield chunk
+        cleaned = _clean_code(full.strip())
+        if not cleaned or len(cleaned) < len(original) * 0.3:
+            yield "\n__FIX_ERROR__"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/plain",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.post("/ai-fix/apply")
+def ai_fix_apply(request: AIFixApplyRequest):
+    validate_file_path(request.path)
+    content = _clean_code(request.content)
+    Path(request.path).write_text(content, encoding="utf-8")
+
+    from app.services.rag_service import rag_service
+    from app.core.validators import is_project_opened
+    project = str(Path(request.path).parent)
+    if is_project_opened(project):
+        try:
+            rag_service.index_project(project, [request.path])
+        except Exception:
+            pass
+
+    return {"applied": True, "path": request.path}
+
+
+def _clean_code(text: str) -> str:
+    cleaned = text.strip()
     if cleaned.startswith("```"):
         cleaned = "\n".join(cleaned.split("\n")[1:])
     if cleaned.endswith("```"):
         cleaned = "\n".join(cleaned.split("\n")[:-1])
-    cleaned = cleaned.strip()
-
-    if not cleaned or len(cleaned) < len(original) * 0.3:
-        raise HTTPException(status_code=422, detail="AI fix returned invalid output")
-
-    file_path.write_text(cleaned, encoding="utf-8")
-    return {"fixed": True, "path": request.path}
+    return cleaned.strip()

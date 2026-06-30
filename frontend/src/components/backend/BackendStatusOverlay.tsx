@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ROOT_BASE } from "../../services/api";
 
-const POLL_INTERVAL = 8000;
-const INITIAL_DELAY = 4000;
+const POLL_INTERVAL = 15000;
+const INITIAL_DELAY = 6000;
 
 async function checkHealth(): Promise<boolean> {
   try {
@@ -31,8 +31,15 @@ export default function BackendStatusOverlay() {
   const [alive, setAlive] = useState<boolean | null>(null);
   const [visible, setVisible] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-  const [showHint, setShowHint] = useState(false);
+  const [dismissed, setDismissed] = useState(
+    () => sessionStorage.getItem("devpilot_backend_dismissed") === "1"
+  );
+
+  const dismiss = useCallback(() => {
+    setDismissed(true);
+    setVisible(false);
+    sessionStorage.setItem("devpilot_backend_dismissed", "1");
+  }, []);
 
   const check = useCallback(async () => {
     const ok = await checkHealth();
@@ -40,12 +47,11 @@ export default function BackendStatusOverlay() {
     if (ok) {
       setVisible(false);
       setStarting(false);
-      setShowHint(false);
-    } else if (!dismissed) {
-      // solo mostrar despues de que falle al menos una vez
-      setShowHint(true);
+    } else if (!dismissed && alive !== null) {
+      // Solo mostrar si ya sabiamos que estaba vivo y cayo
+      setVisible(true);
     }
-  }, [dismissed]);
+  }, [dismissed, alive]);
 
   useEffect(() => {
     const initialTimer = setTimeout(() => {
@@ -53,36 +59,21 @@ export default function BackendStatusOverlay() {
       const interval = setInterval(check, POLL_INTERVAL);
       return () => clearInterval(interval);
     }, INITIAL_DELAY);
-
-    const cleanup = () => clearTimeout(initialTimer);
-    return cleanup;
+    return () => clearTimeout(initialTimer);
   }, [check]);
 
   async function handleStart() {
     setStarting(true);
     const ok = await tryStartBackend();
     if (ok) {
-      // esperar un poco y re-check
       setTimeout(() => check(), 2000);
     } else {
       setStarting(false);
-      setVisible(false);
+      dismiss();
     }
   }
 
-  // mostrar solo despues de delay inicial y si esta caido
-  useEffect(() => {
-    if (alive === false && !dismissed && showHint) {
-      const t = setTimeout(() => setVisible(true), 2000);
-      return () => clearTimeout(t);
-    } else {
-      setVisible(false);
-    }
-  }, [alive, dismissed, showHint]);
-
-  if (!visible) {
-    return null;
-  }
+  if (!visible) return null;
 
   return (
     <AnimatePresence>
@@ -104,7 +95,7 @@ export default function BackendStatusOverlay() {
             {starting ? "Starting..." : "Start"}
           </button>
           <button
-            onClick={() => setDismissed(true)}
+            onClick={dismiss}
             className="ml-1 rounded p-0.5 text-amber-600 transition hover:text-amber-400"
             aria-label="Dismiss"
           >

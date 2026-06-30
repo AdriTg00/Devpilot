@@ -285,6 +285,82 @@ export async function aiFixCode(path: string, issue: string, fixSuggestion: stri
   return response.data;
 }
 
+export async function applyAiFix(path: string, content: string) {
+  const response = await api.post("/project/ai-fix/apply", { path, content });
+  return response.data;
+}
+
+export function streamAiFix(
+  path: string,
+  issue: string,
+  fixSuggestion: string,
+  onChunk: (text: string) => void,
+  onDone: (fixedContent: string) => void,
+  onError: (err: Error) => void,
+) {
+  const url = `${BASE}/project/ai-fix`;
+  const body = JSON.stringify({ path, issue, fix_suggestion: fixSuggestion });
+
+  try {
+    fetch(url, {
+      method: "POST",
+      headers: fetchAuthHeaders(),
+      body,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let full = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          full += chunk;
+
+          if (full.includes("__FIX_ERROR__")) {
+            onError(new Error("AI fix returned invalid output"));
+            return;
+          }
+
+          // Clean markdown fences for display
+          let display = full.replace("__FIX_ERROR__", "");
+          if (display.startsWith("```")) {
+            const lines = display.split("\n");
+            lines.shift();
+            if (lines.length > 0 && lines[lines.length - 1].trim() === "```") {
+              lines.pop();
+            }
+            display = lines.join("\n");
+          }
+          onChunk(display);
+        }
+
+        let cleaned = full.replace("__FIX_ERROR__", "").trim();
+        // Strip markdown code fences (```lang ... ```)
+        if (cleaned.startsWith("```")) {
+          const lines = cleaned.split("\n");
+          lines.shift(); // remove first line (```lang)
+          if (lines[lines.length - 1].trim() === "```") {
+            lines.pop(); // remove last line (```)
+          }
+          cleaned = lines.join("\n").trim();
+        }
+        if (!cleaned) {
+          onError(new Error("Empty response from AI"));
+          return;
+        }
+        onDone(cleaned);
+      })
+      .catch((err) => onError(err instanceof Error ? err : new Error(String(err))));
+  } catch (err) {
+    onError(err instanceof Error ? err : new Error(String(err)));
+  }
+}
+
 export async function exportProject(path: string, language: string) {
   const response = await fetch(BASE + "/project/export", {
     method: "POST",

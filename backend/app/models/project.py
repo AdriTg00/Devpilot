@@ -92,3 +92,8 @@ class AIFixRequest(BaseModel):
     path: str = Field(..., min_length=1)
     issue: str = Field(default="")
     fix_suggestion: str = Field(default="")
+
+
+class AIFixApplyRequest(BaseModel):
+    path: str = Field(..., min_length=1)
+    content: str = Field(..., min_length=1)

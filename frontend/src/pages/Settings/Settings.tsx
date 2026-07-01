@@ -186,7 +186,7 @@ export default function Settings() {
                 <input
                   type="password"
                   value={(settings?.[`${p.id}_api_key` as keyof Settings] as string) ?? ""}
-                  onChange={(e) => update(`${p.id}_api_key` as keyof Settings, e.target.value as any)}
+                  onChange={(e) => update(`${p.id}_api_key` as keyof Settings, e.target.value)}
                   placeholder={`sk-... (${p.label} API key)`}
                   className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
                 />
@@ -198,7 +198,7 @@ export default function Settings() {
                       ? "border-slate-700 bg-slate-800 text-slate-500"
                       : testResults[p.id]?.success
                         ? "border-emerald-600 bg-emerald-600/20 text-emerald-400"
-                        : testResults[p.id] && !testResults[p.id].success
+                        : testResults[p.id]?.success === false
                           ? "border-red-600 bg-red-600/20 text-red-400"
                           : "border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500"
                   }`}
@@ -207,14 +207,14 @@ export default function Settings() {
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-emerald-400" />
                   ) : testResults[p.id]?.success ? (
                     "Connected"
-                  ) : testResults[p.id] && !testResults[p.id].success ? (
+                  ) : testResults[p.id]?.success === false ? (
                     "Failed"
                   ) : (
                     "Test"
                   )}
                 </button>
               </div>
-              {testResults[p.id] && !testResults[p.id].success && (
+              {testResults[p.id]?.success === false && (
                 <p className="mt-1 text-xs text-red-400">{testResults[p.id]?.message}</p>
               )}
               {testResults[p.id]?.success && (

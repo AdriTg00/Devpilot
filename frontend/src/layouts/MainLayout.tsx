@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocation, useOutlet } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 import ErrorBoundary from "../components/error/ErrorBoundary";
 import Navbar from "../components/layout/Navbar";
@@ -25,10 +25,20 @@ export default function MainLayout() {
   const [reducedMotion, setReducedMotion] = useState(false);
   const location = useLocation();
   const outlet = useOutlet();
-  const renderedPages = useRef<Map<string, React.ReactElement>>(new Map());
+  const [cachedPages, setCachedPages] = useState<Record<string, React.ReactElement>>({});
 
+  useEffect(() => {
+    if (outlet) {
+      setCachedPages(prev => {
+        if (prev[location.pathname]) return prev;
+        return { ...prev, [location.pathname]: outlet };
+      });
+    }
+  }, [location.pathname, outlet]);
+
+  const allPages = { ...cachedPages };
   if (outlet) {
-    renderedPages.current.set(location.pathname, outlet);
+    allPages[location.pathname] = outlet;
   }
 
   useEffect(() => {
@@ -85,7 +95,7 @@ export default function MainLayout() {
             >
               <div className="mx-auto w-full max-w-7xl">
                 <ErrorBoundary>
-                  {Array.from(renderedPages.current.entries()).map(([path, pageEl]) => (
+                  {Object.entries(allPages).map(([path, pageEl]) => (
                     <div key={path} hidden={location.pathname !== path}>
                       {pageEl}
                     </div>

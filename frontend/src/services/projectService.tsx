@@ -463,6 +463,7 @@ export function streamToolChat(
         const reader = response.body!.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+        let textBuffer = "";
 
         while (true) {
           const { done, value } = await reader.read();
@@ -484,14 +485,16 @@ export function streamToolChat(
                 // ignore parse errors
               }
             } else {
-              onChunk(line);
+              textBuffer += line + "\n";
+              onChunk(textBuffer);
             }
           }
         }
 
         // remaining buffer
         if (buffer && !buffer.startsWith(TOOL_PREFIX)) {
-          onChunk(buffer);
+          textBuffer += buffer;
+          onChunk(textBuffer);
         }
 
         onDone();

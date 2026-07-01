@@ -147,7 +147,8 @@ class MemoryService:
                 .all()
             )
             if msgs and project not in existing_ids:
-                sid = f"default-{project.replace('/', '_').replace('\\\\', '_')}"
+                safe_name = project.replace("/", "_").replace("\\", "_")
+                sid = f"default-{safe_name}"
                 sessions.insert(0, {
                     "id": sid,
                     "name": "Default",

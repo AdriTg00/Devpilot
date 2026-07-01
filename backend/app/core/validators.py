@@ -102,7 +102,7 @@ def validate_file_path(path: str) -> str:
         HTTPException 403 si la ruta esta en un directorio del sistema.
         HTTPException 400 si la ruta no existe o no es un archivo.
     """
-    p = Path(path).resolve()
+    p = Path(path.replace("\\", "/")).resolve()
     if _is_system_path(p):
         logger.warning("Blocked attempt to access system file: %s", path)
         raise HTTPException(

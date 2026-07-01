@@ -366,7 +366,7 @@ export async function exportProject(path: string, language: string) {
   const blob = await response.blob();
   const disposition = response.headers.get("Content-Disposition") || "";
   const match = disposition.match(/filename="?(.+?)"?$/);
-  const filename = match?.[1] || `${path.split("\\").pop() || "project"}-export.zip`;
+  const filename = match?.[1] || `${path.replace(/\\/g, "/").split("/").filter(Boolean).pop() || "project"}-export.zip`;
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

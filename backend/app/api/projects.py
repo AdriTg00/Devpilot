@@ -77,7 +77,7 @@ def upload_project(request: UploadRequest):
         file_path.write_text(content, encoding="utf-8")
         written += 1
 
-    workspace_path = str(base_resolved)
+    workspace_path = base_resolved.as_posix()
     mark_project_opened(workspace_path)
     analysis = service.analyze_project(workspace_path)
     files = service.get_files(workspace_path)

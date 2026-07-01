@@ -34,7 +34,7 @@ export default function CurrentProject() {
                     <div className="min-w-0">
                         <p className="text-sm text-slate-400">Previous project</p>
                         <p className="mt-1 truncate text-sm font-medium text-slate-300">
-                            {previousPath.split("\\").pop()}
+                            {previousPath.replace(/\\/g, "/").split("/").filter(Boolean).pop()}
                         </p>
                         <p className="mt-1 truncate text-xs text-slate-500">{previousPath}</p>
                     </div>

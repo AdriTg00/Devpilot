@@ -166,7 +166,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const data = await analyzeProject(path);
       setAnalysis({
         ...data,
-        projectName: path.split("\\").pop(),
+        projectName: path.replace(/\\/g, "/").split("/").filter(Boolean).pop(),
         projectPath: path,
       });
       const projectFiles = await getFiles(path);

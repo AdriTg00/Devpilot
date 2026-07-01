@@ -51,7 +51,7 @@ export default function CodeReview() {
   }
 
   async function handleAIFix(fileRel: string, issue: string, fix: string, key: string) {
-    const fullPath = fileRel.includes(":") ? fileRel : `${currentPath}\\${fileRel.replace(/\//g, "\\")}`;
+    const fullPath = fileRel.includes(":") ? fileRel : `${currentPath.replace(/\\/g, "/").replace(/\/+$/, "")}/${fileRel.replace(/\\/g, "/")}`;
     setFixResultKey(null);
     setFixResultContent("");
     setFixingKey(key);

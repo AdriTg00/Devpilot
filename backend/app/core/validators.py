@@ -45,11 +45,19 @@ def is_project_opened(path: str) -> bool:
 
 
 def _is_system_path(p: Path) -> bool:
-    """Heuristica: bloquea rutas dentro de directorios del sistema."""
+    """Heuristica: bloquea rutas dentro de directorios del sistema.
+
+    Detecta tanto separadores nativos (/ en Unix, \\ en Windows) como
+    separadores del otro OS — asi un path Windows "C:\\Windows\\System32"
+    se detecta correctamente incluso en Linux.
+    """
     try:
+        normalized_parts: set[str] = set()
         for part in p.parts:
-            if part in _SYSTEM_BLOCKED_PARTS:
-                return True
+            normalized_parts.add(part)
+            normalized_parts.update(part.split("\\"))
+        if normalized_parts & _SYSTEM_BLOCKED_PARTS:
+            return True
         if os.name == "nt":
             lower = str(p).lower()
             if "\\windows\\" in lower or "\\program files" in lower:

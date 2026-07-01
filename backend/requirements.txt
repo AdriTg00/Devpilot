@@ -10,7 +10,7 @@ google-generativeai
 chromadb
 sqlalchemy
 pyjwt
-passlib[bcrypt]
+bcrypt
 slowapi
 python-json-logger
 prometheus-client

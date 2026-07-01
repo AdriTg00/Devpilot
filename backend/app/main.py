@@ -2,22 +2,22 @@ import json
 import logging
 import time
 import uuid
-from pathlib import Path
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI, Request, Depends
-from fastapi.responses import JSONResponse, Response
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.responses import JSONResponse, Response
+from prometheus_client import REGISTRY, Counter, Histogram, generate_latest
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
+from slowapi.util import get_remote_address
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # app.core.config debe importarse antes que cualquier otro modulo de la app
 # para garantizar que load_dotenv() se ejecuta y las variables de entorno
 # estan disponibles cuando LLMService y otros modulos las leen.
-from app.core.config import CORS_ORIGINS, BASE_URL
+from app.core.config import BASE_URL, CORS_ORIGINS
 
 # ── Logging estructurado (JSON) ──────────────────────────────────────────
 
@@ -122,14 +122,13 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # ── Routers (API versioning con /api/v1) ──────────────────────────────────
 
-from app.core.security import get_current_user
-
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
 from app.api.projects import router as project_router
-from app.api.tools import router as tools_router
 from app.api.settings import router as settings_router
 from app.api.shares import router as shares_router
+from app.api.tools import router as tools_router
+from app.core.security import get_current_user
 
 API_V1 = "/api/v1"
 
@@ -167,8 +166,9 @@ def health():
 
 @app.get("/shared/{token}")
 def get_shared_project(token: str):
-    from app.services.share_service import share_service
     from fastapi import HTTPException
+
+    from app.services.share_service import share_service
     entry = share_service.get_share(token)
     if not entry:
         raise HTTPException(status_code=404, detail="Share not found or expired")
@@ -177,10 +177,10 @@ def get_shared_project(token: str):
 
 @app.get("/health/detailed")
 def health_detailed():
-    from app.services.rag_service import rag_service
-    from app.services.llm_service import get_llm_service
-    from app.services.settings_service import settings_service
     from app.core.config import MEMORY_STORAGE_PATH, SHARES_STORAGE_PATH
+    from app.services.llm_service import get_llm_service
+    from app.services.rag_service import rag_service
+    from app.services.settings_service import settings_service
 
     uptime = time.time() - app_start_time
 

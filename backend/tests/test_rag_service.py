@@ -1,10 +1,7 @@
 """Tests for rag_service.py — semantic chunking + ChromaDB integration."""
 
-import pytest
-from pathlib import Path
 
-from app.services.rag_service import _semantic_chunk, rag_service, DEFAULT_CHUNK_LINES
-
+from app.services.rag_service import DEFAULT_CHUNK_LINES, _semantic_chunk, rag_service
 
 # ---------------------------------------------------------------------------
 # Unit: _semantic_chunk

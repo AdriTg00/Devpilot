@@ -1,11 +1,12 @@
 ﻿import logging
 
-from fastapi import APIRouter, HTTPException
-from app.models.project import FileRequest, FileContentResponse
-from app.tools.file_reader import read_file
-from app.tools.directory_reader import list_files
-from app.tools.code_analyzer import analyze_file
+from fastapi import APIRouter
+
 from app.core.validators import validate_directory, validate_file_path
+from app.models.project import FileContentResponse, FileRequest
+from app.tools.code_analyzer import analyze_file
+from app.tools.directory_reader import list_files
+from app.tools.file_reader import read_file
 
 logger = logging.getLogger(__name__)
 

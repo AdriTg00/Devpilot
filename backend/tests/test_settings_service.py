@@ -3,8 +3,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.db.models import Base, Setting
-from app.models.settings import Settings
+from app.db.models import Base
 from app.services.settings_service import SettingsService
 
 

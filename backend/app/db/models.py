@@ -1,9 +1,9 @@
 """Modelos ORM para SQLite."""
 import datetime
 
-from sqlalchemy import Column, String, Integer, DateTime, Text, JSON
-from sqlalchemy.orm import DeclarativeBase
 from passlib.context import CryptContext
+from sqlalchemy import JSON, Column, DateTime, Integer, String, Text
+from sqlalchemy.orm import DeclarativeBase
 
 _pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

@@ -19,7 +19,7 @@ export default function Particles() {
 
     let dots: Dot[] = [];
     let animId: number;
-    let startTime = performance.now();
+    const startTime = performance.now();
 
     function buildDots(w: number, h: number): Dot[] {
       const count = Math.floor((w * h) / 25000);

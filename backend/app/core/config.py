@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Carga el .env desde el directorio backend/ antes de cualquier os.getenv()

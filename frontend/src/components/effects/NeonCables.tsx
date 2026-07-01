@@ -40,7 +40,7 @@ export default function NeonCables() {
     if (!canvas) return;
 
     let animId: number;
-    let startTime = performance.now();
+    const startTime = performance.now();
     const lineCount = 10;
 
     function positions(h: number): number[] {

@@ -4,13 +4,11 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from sqlalchemy.orm import Session
-
 from app.core.config import BASE_URL
 from app.db.database import SessionLocal
 from app.db.models import Share
-from app.tools.directory_reader import list_files
 from app.services.project_service import project_service
+from app.tools.directory_reader import list_files
 
 logger = logging.getLogger(__name__)
 

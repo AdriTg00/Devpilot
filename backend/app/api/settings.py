@@ -1,11 +1,11 @@
 import os
 
-from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from app.models.settings import Settings
-from app.services.settings_service import settings_service
 from app.services.llm_service import _reinit_llm_service
+from app.services.settings_service import settings_service
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 

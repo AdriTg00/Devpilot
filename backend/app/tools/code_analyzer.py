@@ -127,7 +127,6 @@ def analyze_dart(content: str) -> dict:
     lines = len(content.splitlines())
     functions = len(re.findall(r"\w+\s*\([^)]*\)\s*\{", content))
     classes = len(re.findall(r"\bclass\s+\w+", content))
-    interfaces = len(re.findall(r"\bmixin\s+\w+|\bextends\s+\w+", content))
     return {"lines": lines, "functions": functions, "classes": classes}
 
 

@@ -2,10 +2,10 @@ import logging
 import time
 from pathlib import Path
 
+from app.services.llm_service import get_llm_service
+from app.tools.code_analyzer import analyze_file
 from app.tools.directory_reader import list_files
 from app.tools.file_reader import read_file
-from app.tools.code_analyzer import analyze_file
-from app.services.llm_service import get_llm_service
 
 logger = logging.getLogger(__name__)
 

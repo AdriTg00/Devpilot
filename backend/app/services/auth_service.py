@@ -4,7 +4,6 @@ import logging
 import os
 
 import jwt
-from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
 from app.db.models import User

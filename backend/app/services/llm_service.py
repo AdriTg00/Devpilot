@@ -1,8 +1,8 @@
 import json
+import logging
 import os
 import time
-import logging
-import app.core.config  # load_dotenv (carga .env antes de os.getenv)
+
 from app.core.prompts import SUMMARIZE_PROJECT_PROMPT, language_instruction
 
 logger = logging.getLogger(__name__)
@@ -56,10 +56,6 @@ class LLMProvider:
     @property
     def model_name(self) -> str:
         return self.model
-
-    @property
-    def supports_tools(self) -> bool:
-        return True
 
     def update_model(self, model: str):
         pass
@@ -237,7 +233,7 @@ class OpenAIProvider(LLMProvider):
     """OpenAI provider (gpt-4o, gpt-4o-mini, etc.). Usa la API OpenAI-compatible."""
 
     def __init__(self, api_key: str, model: str | None = None, temperature: float = 0.2):
-        from openai import OpenAI, APIStatusError
+        from openai import APIStatusError, OpenAI
         self._client = OpenAI(api_key=api_key)
         self._APIStatusError = APIStatusError
         model_key = model or os.getenv("OPENAI_MODEL", "fast")
@@ -534,7 +530,7 @@ class GoogleProvider(LLMProvider):
 
 class GroqProvider(LLMProvider):
     def __init__(self, api_key: str, model: str | None = None, temperature: float = 0.2):
-        from groq import Groq, APIStatusError
+        from groq import APIStatusError, Groq
         self._client = Groq(api_key=api_key)
         self._APIStatusError = APIStatusError
         model_key = model or os.getenv("GROQ_MODEL", "fast")

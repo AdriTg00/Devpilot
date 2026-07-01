@@ -1,20 +1,18 @@
 """Tests de seguridad: path traversal, system dirs, upload limits, close gate."""
-import shutil
-import tempfile
 from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
 
 from app.core.validators import (
-    validate_directory,
-    validate_file_path,
-    validate_relative_path,
+    MAX_UPLOAD_FILE_CHARS,
+    MAX_UPLOAD_FILES,
     assert_project_opened,
     is_project_opened,
     mark_project_opened,
-    MAX_UPLOAD_FILES,
-    MAX_UPLOAD_FILE_CHARS,
+    validate_directory,
+    validate_file_path,
+    validate_relative_path,
 )
 
 

@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.models import Base, User
-from app.services.auth_service import create_token, verify_token, authenticate
+from app.services.auth_service import authenticate, create_token, verify_token
 
 
 @pytest.fixture(autouse=True)
@@ -22,8 +22,8 @@ def _init_db(monkeypatch, tmp_path):
     db.close()
 
     import app.services.auth_service as auth_mod
-    import app.services.share_service as share_mod
     import app.services.settings_service as settings_mod
+    import app.services.share_service as share_mod
 
     monkeypatch.setattr(auth_mod, "SessionLocal", TestSession)
     monkeypatch.setattr(share_mod, "SessionLocal", TestSession)
@@ -42,8 +42,9 @@ class TestToken:
 
     def test_verify_expired_token(self, monkeypatch):
         import datetime as dt
-        import jwt
         import os
+
+        import jwt
         secret = os.getenv("JWT_SECRET", "devpilot-dev-secret-change-in-production")
         past = dt.datetime(2020, 1, 1, tzinfo=dt.timezone.utc)
         payload = {"sub": "admin", "iat": past, "exp": past + dt.timedelta(seconds=1)}

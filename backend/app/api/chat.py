@@ -1,18 +1,18 @@
 from fastapi import APIRouter
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.models.chat import (
     ChatRequest,
     ChatResponse,
-    ToolChatRequest,
     CreateSessionRequest,
     RenameSessionRequest,
     SessionEntry,
     SessionMessage,
+    ToolChatRequest,
 )
 from app.services.llm_service import get_llm_service
-from app.tools.tool_definitions import TOOLS
 from app.services.memory_service import memory_service
+from app.tools.tool_definitions import TOOLS
 
 router = APIRouter(tags=["chat"])
 

@@ -8,39 +8,38 @@ from zipfile import ZipFile
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from app.models.project import (
-    ProjectRequest,
-    ProjectResponse,
-    FileRequest,
-    FileContentResponse,
-    ProjectQuestionRequest,
-    ReadmeResponse,
-    RAGStatusResponse,
-    RAGReindexRequest,
-    RAGClearRequest,
-    UploadRequest,
-    CloseRequest,
-    SaveFileRequest,
-    SearchRequest,
-    SearchResponse,
-    SearchMatch,
-    AIFixRequest,
-    AIFixApplyRequest,
-)
-from app.services.project_service import ProjectService
-from app.services.code_explainer_service import CodeExplainerService
-from app.services.memory_service import memory_service
-from app.services.rag_service import rag_service
-from app.services.llm_service import get_llm_service
+
 from app.core.validators import (
+    MAX_UPLOAD_FILE_CHARS,
+    MAX_UPLOAD_FILES,
+    assert_project_opened,
+    mark_project_opened,
     validate_directory,
     validate_file_path,
     validate_relative_path,
-    assert_project_opened,
-    mark_project_opened,
-    MAX_UPLOAD_FILES,
-    MAX_UPLOAD_FILE_CHARS,
 )
+from app.models.project import (
+    AIFixApplyRequest,
+    AIFixRequest,
+    CloseRequest,
+    FileContentResponse,
+    FileRequest,
+    ProjectQuestionRequest,
+    ProjectRequest,
+    RAGClearRequest,
+    RAGReindexRequest,
+    RAGStatusResponse,
+    ReadmeResponse,
+    SaveFileRequest,
+    SearchRequest,
+    SearchResponse,
+    UploadRequest,
+)
+from app.services.code_explainer_service import CodeExplainerService
+from app.services.llm_service import get_llm_service
+from app.services.memory_service import memory_service
+from app.services.project_service import ProjectService
+from app.services.rag_service import rag_service
 
 logger = logging.getLogger(__name__)
 
@@ -303,7 +302,7 @@ def export_project(request: ProjectRequest):
         for ext, stats in sorted(analysis.get("by_type", {}).items(), key=lambda x: -x[1]["lines"]):
             report += f"- {ext}: {stats['files']} files, {stats['lines']} lines, {stats['functions']} functions, {stats['classes']} classes\n"
 
-        report += f"\n## File Tree\n\n```\n" + "\n".join(sorted(tree_lines)) + "\n```\n"
+        report += "\n## File Tree\n\n```\n" + "\n".join(sorted(tree_lines)) + "\n```\n"
         z.writestr("project-report.md", report)
 
     buf.seek(0)
@@ -381,8 +380,8 @@ def ai_fix_apply(request: AIFixApplyRequest):
     content = _clean_code(request.content)
     Path(request.path).write_text(content, encoding="utf-8")
 
-    from app.services.rag_service import rag_service
     from app.core.validators import is_project_opened
+    from app.services.rag_service import rag_service
     project = str(Path(request.path).parent)
     if is_project_opened(project):
         try:

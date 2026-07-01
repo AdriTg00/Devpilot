@@ -1,9 +1,9 @@
 import logging
 
-from app.models.settings import Settings
-from app.services.rag_service import rag_service
 from app.db.database import SessionLocal
 from app.db.models import Setting
+from app.models.settings import Settings
+from app.services.rag_service import rag_service
 
 logger = logging.getLogger(__name__)
 

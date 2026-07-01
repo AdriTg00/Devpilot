@@ -27,7 +27,9 @@ export default function ProjectSelector() {
       return;
     }
     try {
-      const handle = await (window as any).showDirectoryPicker();
+      const handle = await (window as unknown as {
+        showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>;
+      }).showDirectoryPicker();
       setFolderName(handle.name);
       setPhase("reading");
       const entries = await readDirectoryFromHandle(handle, "", () => {

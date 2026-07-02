@@ -256,7 +256,7 @@ export default function Chat() {
     };
 
     if (currentPath) {
-      streamToolChat(question, currentPath, onChunk, onToolEvent, onDone, onError);
+      streamToolChat(question, currentPath, onChunk, onToolEvent, onDone, onError, sessionId);
     } else {
       streamSessionChat(question, sessionId, onChunk, onDone, onError);
     }

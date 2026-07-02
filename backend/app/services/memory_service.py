@@ -139,6 +139,8 @@ class MemoryService:
         db = SessionLocal()
         try:
             sessions = self._load_sessions(db, project)
+            safe_name = project.replace("/", "_").replace("\\", "_")
+            default_sid = f"default-{safe_name}"
             existing_ids = {s["id"] for s in sessions}
             msgs = (
                 db.query(Message)
@@ -146,11 +148,9 @@ class MemoryService:
                 .order_by(Message.id)
                 .all()
             )
-            if msgs and project not in existing_ids:
-                safe_name = project.replace("/", "_").replace("\\", "_")
-                sid = f"default-{safe_name}"
+            if msgs and default_sid not in existing_ids:
                 sessions.insert(0, {
-                    "id": sid,
+                    "id": default_sid,
                     "name": "Default",
                     "created_at": datetime.now(timezone.utc).isoformat(),
                     "updated_at": datetime.now(timezone.utc).isoformat(),

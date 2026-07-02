@@ -446,9 +446,10 @@ export function streamToolChat(
   onToolEvent: (event: ToolEvent) => void,
   onDone: () => void,
   onError: (err: Error) => void,
+  sessionId?: string,
 ) {
   const url = `${BASE}/chat/tool-stream`;
-  const body = JSON.stringify({ message, project_path: projectPath });
+  const body = JSON.stringify({ message, project_path: projectPath, session_id: sessionId || null });
   const TOOL_PREFIX = "__TOOL__";
 
   try {

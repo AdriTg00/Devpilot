@@ -19,15 +19,25 @@ router = APIRouter(tags=["chat"])
 _CASUAL_KEY = "_casual"
 
 _CHAT_SYSTEM_PROMPT = (
-    "You are DevPilot AI, a software development assistant.\n"
-    "The user may have a project open — help them with code, questions, or ideas.\n"
-    "Respond naturally in the same language the user uses."
+    "You are DevPilot AI, an expert software development assistant.\n"
+    "Help the user with code, architecture, debugging, and development questions.\n"
+    "Guidelines:\n"
+    "- Respond naturally in the same language the user uses.\n"
+    "- Format code with markdown code blocks using the appropriate language tag.\n"
+    "- Be concise but thorough. Explain your reasoning.\n"
+    "- If unsure, say so rather than inventing answers.\n"
+    "- Structure long responses with headings, lists, and code blocks for readability.\n"
+    "- When suggesting code changes, show the relevant code and explain what needs to change.\n"
+    "- Don't invent APIs, functions, file paths, or project structure.\n"
+    "- Use the conversation history to maintain context across messages."
 )
 
 
-def _build_user_prompt(message: str, session_id: str | None = None) -> str:
+def _build_user_prompt(message: str, session_id: str | None = None, project_path: str | None = None) -> str:
     if session_id:
         history = memory_service.build_context(memory_service._session_key(session_id))
+    elif project_path:
+        history = memory_service.build_context(project_path)
     else:
         history = memory_service.build_context(_CASUAL_KEY)
     if history:
@@ -113,10 +123,17 @@ def get_session_history(session_id: str):
 # --- Tool-calling chat ---
 
 _TOOL_SYSTEM_PROMPT = (
-    "You are DevPilot AI, a software development assistant with project access.\n"
-    "You have tools to read files, search code, and explore the project.\n"
-    "Use them when you need info to answer. Don't invent file paths or content.\n"
-    "Respond naturally in the same language the user uses."
+    "You are DevPilot AI, an expert software development assistant with full project access.\n"
+    "You have tools available to read files, search code, and explore the project structure.\n"
+    "Guidelines:\n"
+    "- Respond naturally in the same language the user uses.\n"
+    "- When the user asks about their code, USE YOUR TOOLS to read files and search before answering.\n"
+    "- Format code with markdown code blocks using the appropriate language tag.\n"
+    "- Be concise but thorough. Explain your reasoning.\n"
+    "- Don't invent file paths, content, or function signatures. Verify by reading files.\n"
+    "- Structure long responses with headings, lists, and code blocks.\n"
+    "- If a tool returns an error, inform the user and suggest alternatives.\n"
+    "- Use the conversation history to maintain context across messages."
 )
 
 
@@ -124,20 +141,29 @@ _TOOL_SYSTEM_PROMPT = (
 def chat_tool_stream(request: ToolChatRequest):
     llm = get_llm_service()
 
+    # Build user prompt with conversation history
+    user_prompt = _build_user_prompt(request.message, request.session_id, request.project_path)
+
     # If the provider doesn't support tool calling, use regular stream with project context
     if not llm.provider.supports_tools:
         system = _CHAT_SYSTEM_PROMPT
         if request.project_path:
             system += f"\n\nThe user's current project is at: {request.project_path}"
-        stream = llm.ask_with_system_stream(system, request.message)
+        stream = llm.ask_with_system_stream(system, user_prompt)
         def generate():
             full = ""
             for chunk in stream:
                 full += chunk
                 yield chunk
-            session_key = request.project_path or _CASUAL_KEY
-            memory_service.add(session_key, "user", request.message)
-            memory_service.add(session_key, "assistant", full)
+            if request.session_id:
+                memory_service.add_session_message(request.session_id, "user", request.message)
+                memory_service.add_session_message(request.session_id, "assistant", full)
+            elif request.project_path:
+                memory_service.add(request.project_path, "user", request.message)
+                memory_service.add(request.project_path, "assistant", full)
+            else:
+                memory_service.add(_CASUAL_KEY, "user", request.message)
+                memory_service.add(_CASUAL_KEY, "assistant", full)
         return StreamingResponse(
             generate(),
             media_type="text/plain",
@@ -148,7 +174,7 @@ def chat_tool_stream(request: ToolChatRequest):
     if request.project_path:
         system += f"\n\nProyecto activo: {request.project_path}"
 
-    stream = llm.ask_with_system_tools_stream(system, request.message, TOOLS)
+    stream = llm.ask_with_system_tools_stream(system, user_prompt, TOOLS)
 
     def generate():
         full = ""
@@ -156,9 +182,15 @@ def chat_tool_stream(request: ToolChatRequest):
             if not chunk.startswith("__TOOL__"):
                 full += chunk
             yield chunk
-        session_key = request.project_path or _CASUAL_KEY
-        memory_service.add(session_key, "user", request.message)
-        memory_service.add(session_key, "assistant", full)
+        if request.session_id:
+            memory_service.add_session_message(request.session_id, "user", request.message)
+            memory_service.add_session_message(request.session_id, "assistant", full)
+        elif request.project_path:
+            memory_service.add(request.project_path, "user", request.message)
+            memory_service.add(request.project_path, "assistant", full)
+        else:
+            memory_service.add(_CASUAL_KEY, "user", request.message)
+            memory_service.add(_CASUAL_KEY, "assistant", full)
 
     return StreamingResponse(
         generate(),

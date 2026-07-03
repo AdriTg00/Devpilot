@@ -15,7 +15,7 @@ export default function RecentProjects() {
             onClick={clearRecentProjects}
             className="rounded-lg px-2 py-1 text-xs text-slate-500 transition hover:text-red-400"
           >
-            Clear all
+            {t("recent.clear")}
           </button>
         )}
       </div>

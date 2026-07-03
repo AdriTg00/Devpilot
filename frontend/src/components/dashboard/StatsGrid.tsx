@@ -29,7 +29,7 @@ function getLangInfo(ext: string): LangInfo {
   return LANG_INFO[ext] || { color: "#6B7280", label: ext };
 }
 
-function LanguageBar({ byType }: { byType: Record<string, { lines: number }> }) {
+function LanguageBar({ byType, t: _t }: { byType: Record<string, { lines: number }>; t: (k: string, p?: Record<string, string | number>) => string }) {
   const entries = Object.entries(byType);
   const total = entries.reduce((s, [, v]) => s + v.lines, 0);
   if (total === 0) return null;
@@ -37,7 +37,7 @@ function LanguageBar({ byType }: { byType: Record<string, { lines: number }> }) 
   return (
     <Card>
       <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-400">
-        Language Distribution
+        {_t("stats.lang_distribution")}
       </p>
       <div className="flex h-3 overflow-hidden rounded-full bg-slate-700">
         {entries.map(([ext, stats]) => {
@@ -155,7 +155,7 @@ export default function StatsGrid() {
 
       {byType && Object.keys(byType).length > 0 && (
         <>
-          <LanguageBar byType={byType} />
+          <LanguageBar byType={byType} t={t} />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Object.entries(byType)

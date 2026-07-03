@@ -23,7 +23,7 @@ const CATEGORY_META: Record<string, { dot: string; color: string }> = {
 
 export default function CodeReview() {
   const { currentPath, analysis } = useProject();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -67,7 +67,7 @@ export default function CodeReview() {
         setFixingStream("");
       },
       () => {
-        toast(`Failed to fix: ${fileRel}`, "error");
+        toast(t("code_review.failed_fix", { file: fileRel }), "error");
         setFixingKey(null);
         setFixingStream("");
       },
@@ -76,8 +76,8 @@ export default function CodeReview() {
 
   function handleCopyFix(content: string) {
     navigator.clipboard.writeText(content).then(
-      () => toast("Code copied to clipboard", "success"),
-      () => toast("Failed to copy", "error"),
+      () => toast(t("code_review.copied"), "success"),
+      () => toast(t("code_review.copy_failed"), "error"),
     );
   }
 
@@ -123,7 +123,7 @@ export default function CodeReview() {
   return (
     <div className="space-y-4">
       <Button onClick={handleReview} loading={loading} variant="secondary">
-        {loading ? "Running Code Review…" : "AI Code Review"}
+        {loading ? t("code_review.running") : t("code_review.run")}
       </Button>
 
       <AnimatePresence mode="wait">
@@ -142,9 +142,9 @@ export default function CodeReview() {
                    <span className="h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white">Code Review</h3>
+                  <h3 className="font-semibold text-white">{t("code_review.title")}</h3>
                   <p className="text-xs text-slate-500">
-                    {loading ? "Analyzing source files…" : `${categories.length} categories reviewed`}
+                    {loading ? t("code_review.analyzing") : t("code_review.categories_reviewed", { count: categories.length })}
                   </p>
                 </div>
               </div>
@@ -178,7 +178,7 @@ export default function CodeReview() {
                         <div className="mb-3 flex items-center gap-2.5">
                           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${meta.dot}`} />
                           <h4 className="text-sm font-semibold text-white">{title}</h4>
-                          <span className="ml-auto text-[10px] text-slate-500">{findings.length} {findings.length === 1 ? "issue" : "issues"}</span>
+                          <span className="ml-auto text-[10px] text-slate-500">{findings.length} {findings.length === 1 ? t("code_review.issue_single") : t("code_review.issues")}</span>
                         </div>
 
                         {loading && findings.length === 0 && (
@@ -201,19 +201,19 @@ export default function CodeReview() {
                               </div>
                               {f.file && (
                                 <p className="mb-1 text-[11px] text-slate-500">
-                                  <span className="text-slate-600">File:</span>{" "}
+                                  <span className="text-slate-600">{t("code_review.file")}</span>{" "}
                                   <code className="rounded bg-slate-700 px-1 py-0.5 text-emerald-400">{f.file}</code>
-                                  {f.line && <span className="ml-2 text-slate-600">Line: ~{f.line}</span>}
+                                  {f.line && <span className="ml-2 text-slate-600">{t("code_review.line", { line: f.line })}</span>}
                                 </p>
                               )}
                               {f.issue && (
                                 <p className="mb-1.5 text-[11px] leading-relaxed text-slate-400">
-                                  <span className="font-medium text-slate-500">Issue:</span> {f.issue}
+                                  <span className="font-medium text-slate-500">{t("code_review.issue_label")}</span> {f.issue}
                                 </p>
                               )}
                               {f.fix && (
                                 <p className="text-[11px] leading-relaxed text-emerald-400/80">
-                                  <span className="font-medium text-emerald-500/60">Fix:</span> {f.fix}
+                                  <span className="font-medium text-emerald-500/60">{t("code_review.fix_label")}</span> {f.fix}
                                 </p>
                               )}
                               {f.file && (
@@ -233,7 +233,7 @@ export default function CodeReview() {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                       </svg>
                                     )}
-                                    AI Fix
+                                    {t("code_review.ai_fix")}
                                   </button>
                                 </div>
                               )}
@@ -246,10 +246,10 @@ export default function CodeReview() {
                                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                     </svg>
-                                    <span className="text-xs text-slate-400">Generating fix...</span>
+                                    <span className="text-xs text-slate-400">{t("code_review.generating_fix")}</span>
                                   </div>
                                   <pre className="max-h-32 overflow-auto rounded bg-slate-950 p-2 text-[10px] leading-relaxed text-slate-500">
-                                    {fixingStream || "Waiting for AI..."}
+                                    {fixingStream || t("code_review.waiting_ai")}
                                   </pre>
                                 </div>
                               )}
@@ -260,7 +260,7 @@ export default function CodeReview() {
                                   <div className="mb-2 flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                       <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
-                                      <span className="text-xs font-medium text-white">Suggested fix</span>
+                                      <span className="text-xs font-medium text-white">{t("code_review.suggested_fix")}</span>
                                     </div>
                                     <div className="flex gap-1.5">
                                       <button
@@ -270,7 +270,7 @@ export default function CodeReview() {
                                         <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                                         </svg>
-                                        Copy
+                                        {t("code_review.copy")}
                                       </button>
                                       <button
                                         onClick={handleDismissFix}

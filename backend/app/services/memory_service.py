@@ -243,7 +243,7 @@ class MemoryService:
             db.close()
 
 
-# Singleton — se inicializa en startup/lifespan
+# Singleton — initialized in startup/lifespan
 memory_service = MemoryService()
 
 # Migrate legacy JSON si existe

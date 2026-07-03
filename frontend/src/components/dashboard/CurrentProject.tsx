@@ -19,7 +19,7 @@ export default function CurrentProject() {
         try {
             await resumeProject();
         } catch {
-            toast("Error al retomar proyecto", "error");
+            toast(t("current_project.resume_error"), "error");
         } finally {
             setResuming(false);
         }
@@ -32,7 +32,7 @@ export default function CurrentProject() {
             <Card>
                 <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                        <p className="text-sm text-slate-400">Previous project</p>
+                        <p className="text-sm text-slate-400">{t("current_project.previous")}</p>
                         <p className="mt-1 truncate text-sm font-medium text-slate-300">
                             {previousPath.replace(/\\/g, "/").split("/").filter(Boolean).pop()}
                         </p>
@@ -43,7 +43,7 @@ export default function CurrentProject() {
                         disabled={resuming || loading}
                         className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
                     >
-                        {resuming ? "Opening..." : "Resume"}
+                        {resuming ? t("current_project.opening") : t("current_project.resume")}
                     </button>
                 </div>
             </Card>
@@ -68,7 +68,7 @@ export default function CurrentProject() {
             const result = await shareProject(currentPath, 7);
             setShareLink(result.url);
         } catch {
-            toast("Error al generar link de compartir", "error");
+            toast(t("current_project.share_error"), "error");
         } finally {
             setSharing(false);
         }
@@ -77,7 +77,7 @@ export default function CurrentProject() {
     function copyLink() {
         if (shareLink) {
             navigator.clipboard.writeText(shareLink);
-            toast("Link copiado al portapapeles", "success");
+            toast(t("current_project.link_copied"), "success");
         }
     }
 
@@ -97,12 +97,12 @@ export default function CurrentProject() {
                     {shareLink && (
                         <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-3 py-2">
                             <span className="truncate text-xs text-emerald-300">{shareLink}</span>
-                            <button
-                                onClick={copyLink}
-                                className="shrink-0 rounded-md bg-emerald-700 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-600"
-                            >
-                                Copy
-                            </button>
+                                <button
+                                    onClick={copyLink}
+                                    className="shrink-0 rounded-md bg-emerald-700 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-600"
+                                >
+                                    {t("current_project.copy")}
+                                </button>
                         </div>
                     )}
                 </div>
@@ -112,14 +112,14 @@ export default function CurrentProject() {
                         disabled={sharing}
                         className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400 disabled:opacity-50"
                     >
-                        {sharing ? "..." : "Share"}
+                        {sharing ? "..." : t("current_project.share")}
                     </button>
                     <button
                         onClick={handleExport}
                         disabled={exporting}
                         className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400 disabled:opacity-50"
                     >
-                        {exporting ? "..." : "Export"}
+                        {exporting ? "..." : t("current_project.export")}
                     </button>
                     <button
                         onClick={closeProject}

@@ -197,12 +197,12 @@ export default function FileViewer() {
       await selectFile(selectedFile);
       setEditing(false);
       setEditContent("");
-      toast("File saved", "success");
+      toast(t("viewer.saved"), "success");
       if (currentPath) {
         reindexProject(currentPath, [selectedFile.path]).catch(() => {});
       }
     } catch {
-      toast("Error saving file", "error");
+      toast(t("viewer.save_error"), "error");
     } finally {
       setSaving(false);
     }
@@ -240,7 +240,7 @@ export default function FileViewer() {
           </h2>
           {editing && (
             <span className="shrink-0 rounded-md bg-emerald-600/20 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
-              EDITING
+              {t("viewer.editing")}
             </span>
           )}
         </div>
@@ -253,13 +253,13 @@ export default function FileViewer() {
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white transition hover:bg-emerald-700 disabled:opacity-50"
               >
                 {saving && <Spinner size="sm" />}
-                {saving ? "Saving\u2026" : "Save"}
+                {saving ? t("viewer.saving") : t("viewer.save")}
               </button>
               <button
                 onClick={cancelEditing}
                 className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:text-slate-200"
               >
-                Cancel
+                {t("viewer.cancel")}
               </button>
             </>
           ) : (
@@ -271,13 +271,13 @@ export default function FileViewer() {
                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                Search
+                {t("viewer.search")}
               </button>
               <button
                 onClick={startEditing}
                 className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400"
               >
-                Edit
+                {t("viewer.edit")}
               </button>
               <button
                 onClick={explainSelectedFile}
@@ -304,7 +304,7 @@ export default function FileViewer() {
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setMatchIndex(0); }}
                   onKeyDown={handleSearchKeydown}
-                  placeholder="Search in file..."
+                  placeholder={t("viewer.search_placeholder")}
                   className="w-48 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white outline-none placeholder:text-slate-500 focus:border-emerald-500"
                 />
                 <span className="text-[11px] text-slate-500">

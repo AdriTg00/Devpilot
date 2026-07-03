@@ -1,4 +1,4 @@
-"""Servicio de autenticacion JWT con SQLite."""
+"""JWT authentication service with SQLite."""
 import datetime
 import logging
 import os
@@ -44,7 +44,7 @@ def authenticate(username: str, password: str) -> str | None:
 
 
 def seed_default_user():
-    """Crea el usuario admin/admin por defecto si no existe."""
+    """Create the default admin/admin user if it does not exist."""
     db = SessionLocal()
     try:
         if db.query(User).filter(User.username == "admin").first():

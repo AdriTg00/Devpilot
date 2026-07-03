@@ -1,5 +1,7 @@
 import { motion } from "framer-motion";
 import { useProject } from "../../contexts/ProjectContext";
+import { useLanguage } from "../../contexts/LanguageContext";
+import CollapsibleSection from "../../components/ui/CollapsibleSection";
 import ProjectSelector from "../../components/dashboard/ProjectSelector";
 import CurrentProject from "../../components/dashboard/CurrentProject";
 import StatsGrid from "../../components/dashboard/StatsGrid";
@@ -21,6 +23,7 @@ const fadeUp = {
 
 export default function Project() {
   const { analysis } = useProject();
+  const { t } = useLanguage();
 
   return (
     <motion.div
@@ -34,45 +37,61 @@ export default function Project() {
       </motion.div>
       {analysis && (
         <motion.div
-          className="space-y-8"
+          className="space-y-6"
           variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
           initial="hidden"
           animate="visible"
         >
           <motion.div variants={fadeUp}>
-            <CurrentProject />
+            <CollapsibleSection title={t("project.overview")} defaultOpen={true}>
+              <CurrentProject />
+            </CollapsibleSection>
           </motion.div>
           <motion.div variants={fadeUp}>
-            <StatsGrid />
+            <CollapsibleSection title={t("project.statistics")} defaultOpen={true}>
+              <StatsGrid />
+            </CollapsibleSection>
           </motion.div>
           <motion.div variants={fadeUp}>
-            <ProjectActions />
+            <CollapsibleSection title={t("project.actions")} defaultOpen={true}>
+              <ProjectActions />
+            </CollapsibleSection>
           </motion.div>
           <motion.div variants={fadeUp}>
-            <RAGStatus />
+            <CollapsibleSection title={t("project.rag_index")} defaultOpen={true}>
+              <RAGStatus />
+            </CollapsibleSection>
           </motion.div>
           <motion.div variants={fadeUp}>
-            <CodeReview />
+            <CollapsibleSection title={t("project.code_review")} defaultOpen={true}>
+              <CodeReview />
+            </CollapsibleSection>
           </motion.div>
         </motion.div>
       )}
       {!analysis && (
         <motion.div
-          className="space-y-8"
+          className="space-y-6"
           variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
           initial="hidden"
           animate="visible"
         >
           <motion.div variants={fadeUp}>
-            <RecentProjects />
+            <CollapsibleSection title={t("project.recent_projects")} defaultOpen={true}>
+              <RecentProjects />
+            </CollapsibleSection>
           </motion.div>
         </motion.div>
       )}
       <motion.div variants={fadeUp}>
-        <FileExplorer />
+        <CollapsibleSection title={t("project.file_explorer")} defaultOpen={true}>
+          <FileExplorer />
+        </CollapsibleSection>
       </motion.div>
       <motion.div variants={fadeUp}>
-        <FileViewer />
+        <CollapsibleSection title={t("project.file_viewer")} defaultOpen={true}>
+          <FileViewer />
+        </CollapsibleSection>
       </motion.div>
     </motion.div>
   );

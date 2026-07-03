@@ -1,4 +1,4 @@
-"""Modelos ORM para SQLite."""
+"""SQLAlchemy ORM models for SQLite."""
 import datetime
 
 import bcrypt

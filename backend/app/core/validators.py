@@ -1,13 +1,13 @@
 """
-Utilidades de validacion de rutas del sistema de ficheros.
+Filesystem path validation utilities.
 
-Todas las rutas que entran por la API deben pasar por estos validadores
-antes de ser procesadas por los servicios.
+All paths entering through the API must pass through these validators
+before being processed by services.
 
-Medidas de seguridad:
-- Bloquea directorios del sistema (Windows/Unix).
-- Rastrea proyectos abiertos para evitar operaciones destructivas en rutas arbitrarias.
-- Detecta path traversal en uploads.
+Security measures:
+- Blocks system directories (Windows/Unix).
+- Tracks opened projects to prevent destructive operations on arbitrary paths.
+- Detects path traversal in uploads.
 """
 import logging
 import os
@@ -17,7 +17,7 @@ from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
-# Directorios del sistema que nunca deben ser accesibles.
+# System directories that must never be accessible.
 _SYSTEM_BLOCKED_PARTS = frozenset({
     "Windows", "System32", "System", "SysWOW64",
     "Program Files", "Program Files (x86)",
@@ -26,30 +26,30 @@ _SYSTEM_BLOCKED_PARTS = frozenset({
     "var", "root", "lib", "lib64",
 })
 
-# Limites para uploads.
+# Upload limits.
 MAX_UPLOAD_FILES = 2000
-MAX_UPLOAD_FILE_CHARS = 1_000_000  # 1 MB por archivo (contenido en JSON).
+MAX_UPLOAD_FILE_CHARS = 1_000_000  # 1 MB per file (content in JSON).
 
-# Proyectos abiertos en memoria (registered via validate_directory).
+# Opened projects in memory (registered via validate_directory).
 _opened_projects: set[str] = set()
 
 
 def mark_project_opened(path: str) -> None:
-    """Registra un proyecto como abierto (validado) para permettre close/save."""
+    """Register a project as opened (validated) to allow close/save."""
     _opened_projects.add(str(Path(path).resolve()))
 
 
 def is_project_opened(path: str) -> bool:
-    """Verifica si un proyecto fue abierto (analizado/upload) en esta sesion."""
+    """Check if a project was opened (analyzed/uploaded) in this session."""
     return str(Path(path).resolve()) in _opened_projects
 
 
 def _is_system_path(p: Path) -> bool:
-    """Heuristica: bloquea rutas dentro de directorios del sistema.
+    """Heuristic: blocks paths inside system directories.
 
-    Detecta tanto separadores nativos (/ en Unix, \\ en Windows) como
-    separadores del otro OS — asi un path Windows "C:\\Windows\\System32"
-    se detecta correctamente incluso en Linux.
+    Detects both native separators (/ on Unix, \\ on Windows) and
+    separators from the other OS — so a Windows path "C:\\Windows\\System32"
+    is correctly detected even on Linux.
     """
     try:
         normalized_parts: set[str] = set()
@@ -68,13 +68,13 @@ def _is_system_path(p: Path) -> bool:
 
 
 def validate_directory(path: str) -> str:
-    """Valida que la ruta exista, sea un directorio y NO sea del sistema.
+    """Validate the path exists, is a directory, and is NOT a system path.
 
-    Marca el proyecto como abierto para operaciones posteriores.
+    Marks the project as opened for subsequent operations.
 
     Raises:
-        HTTPException 403 si la ruta esta en un directorio del sistema.
-        HTTPException 400 si la ruta no existe o no es un directorio.
+        HTTPException 403 if the path is in a system directory.
+        HTTPException 400 if the path does not exist or is not a directory.
     """
     p = Path(path).resolve()
     if _is_system_path(p):
@@ -84,7 +84,7 @@ def validate_directory(path: str) -> str:
             detail=f"Access to system directories is blocked: {path}",
         )
     if not p.exists():
-        logger.warning("Ruta no encontrada: %s", path)
+        logger.warning("Path not found: %s", path)
         raise HTTPException(status_code=400, detail=f"La ruta no existe: {path}")
     if not p.is_dir():
         raise HTTPException(
@@ -96,11 +96,11 @@ def validate_directory(path: str) -> str:
 
 
 def validate_file_path(path: str) -> str:
-    """Valida que la ruta exista, sea un archivo y NO este en sistema.
+    """Validate the path exists, is a file, and is NOT a system path.
 
     Raises:
-        HTTPException 403 si la ruta esta en un directorio del sistema.
-        HTTPException 400 si la ruta no existe o no es un archivo.
+        HTTPException 403 if the path is in a system directory.
+        HTTPException 400 if the path does not exist or is not a file.
     """
     p = Path(path.replace("\\", "/")).resolve()
     if _is_system_path(p):
@@ -110,7 +110,7 @@ def validate_file_path(path: str) -> str:
             detail=f"Access to system files is blocked: {path}",
         )
     if not p.exists():
-        logger.warning("Archivo no encontrado: %s", path)
+        logger.warning("File not found: %s", path)
         raise HTTPException(status_code=400, detail=f"El archivo no existe: {path}")
     if not p.is_file():
         raise HTTPException(
@@ -121,10 +121,10 @@ def validate_file_path(path: str) -> str:
 
 
 def validate_relative_path(base: str, rel: str) -> str:
-    """Valida que un path relativo no escape del base (path traversal).
+    """Validate a relative path does not escape the base (path traversal).
 
     Raises:
-        HTTPException 403 si el path relativo escapa del base.
+        HTTPException 403 if the relative path escapes the base.
     """
     base_resolved = Path(base).resolve()
     target = (base_resolved / rel).resolve()
@@ -141,10 +141,10 @@ def validate_relative_path(base: str, rel: str) -> str:
 
 
 def assert_project_opened(path: str) -> None:
-    """Garantiza que un proyecto fue abierto antes de operar sobre el (close/rmtree).
+    """Ensure a project was opened before operating on it (close/rmtree).
 
     Raises:
-        HTTPException 403 si el proyecto no fue registrado como abierto.
+        HTTPException 403 if the project was not registered as opened.
     """
     if not is_project_opened(path):
         logger.warning("Close attempt on unopened project: %s", path)

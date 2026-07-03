@@ -94,7 +94,7 @@ def upload_project(request: UploadRequest):
 @router.post("/close")
 def close_project(request: CloseRequest):
     path = Path(request.path).resolve()
-    # Gate: solo se pueden cerrar proyectos previamente abiertos.
+    # Gate: only previously opened projects can be closed.
     assert_project_opened(str(path))
     rag_service.clear_project(str(path))
     memory_service.clear(str(path))

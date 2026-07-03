@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 MAX_FILE_CONTEXT = 1000
 
-# Patrones de mensajes casuales que no necesitan contexto de codigo
+# Casual message patterns that do not need code context
 _CASUAL_PATTERNS = re.compile(
     r"^(hola|buenas|hey|hello|hi|saludos|que tal|como estas|"
     r"gracias|thank you|thanks|adios|bye|nos vemos|"
@@ -55,7 +55,7 @@ class CodeExplainerService:
     def _build_context(
         self, path: str, max_chars: int = 1000, max_total: int = 10000
     ) -> tuple[str, str]:
-        """Construye el contexto de codigo para los prompts del LLM.
+        """Build code context for LLM prompts.
 
         Returns:
             tuple: (project_name, context_string)
@@ -81,7 +81,7 @@ class CodeExplainerService:
                 content = read_file(file)
                 context += f"--- {file} ---\n{content[:max_chars]}\n"
             except Exception as e:
-                logger.warning(f"No se pudo leer el archivo {file}: {e}")
+                logger.warning(f"Could not read file {file}: {e}")
                 continue
             if len(context) > max_total:
                 break

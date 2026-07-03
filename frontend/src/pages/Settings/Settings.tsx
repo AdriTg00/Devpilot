@@ -19,26 +19,24 @@ const languages = ["en", "es"] as const;
 
 interface ProviderDef {
   id: string;
-  label: string;
-  desc: string;
   free: boolean;
   local: boolean;
   needsKey: boolean;
 }
 
 const PROVIDERS: ProviderDef[] = [
-  { id: "ollama", label: "Ollama", desc: "Open-source models, runs on your machine", free: true, local: true, needsKey: false },
-  { id: "openai", label: "OpenAI", desc: "GPT-4o, GPT-4o-mini. Fast & powerful", free: false, local: false, needsKey: true },
-  { id: "anthropic", label: "Claude", desc: "Claude 3.5 Sonnet. Great for code review", free: false, local: false, needsKey: true },
-  { id: "google", label: "Gemini", desc: "Gemini 2.0 Flash. Google's latest", free: false, local: false, needsKey: true },
-  { id: "groq", label: "Groq", desc: "Fast inference. Free tier available", free: true, local: false, needsKey: true },
-  { id: "auto", label: "Auto", desc: "Smart detection. Ollama → Groq → first available", free: true, local: false, needsKey: false },
+  { id: "ollama", free: true, local: true, needsKey: false },
+  { id: "openai", free: false, local: false, needsKey: true },
+  { id: "anthropic", free: false, local: false, needsKey: true },
+  { id: "google", free: false, local: false, needsKey: true },
+  { id: "groq", free: true, local: false, needsKey: true },
+  { id: "auto", free: true, local: false, needsKey: false },
 ];
 
 const MODEL_PRESETS = [
-  { id: "fast", label: "Fast", desc: "Quick responses" },
-  { id: "balanced", label: "Balanced", desc: "Good quality" },
-  { id: "code", label: "Code", desc: "Best for code" },
+  { id: "fast" },
+  { id: "balanced" },
+  { id: "code" },
 ];
 
 export default function Settings() {
@@ -47,6 +45,7 @@ export default function Settings() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pendingLanguage, setPendingLanguage] = useState<"en" | "es">(language);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string } | null>>({});
@@ -54,9 +53,9 @@ export default function Settings() {
   useEffect(() => {
     getSettings()
       .then((s) => setSettings(s))
-      .catch(() => toast("Failed to load settings"))
+      .catch(() => toast(t("settings.load_error")))
       .finally(() => setLoading(false));
-  }, [toast]);
+  }, [t, toast]);
 
   function update<K extends keyof Settings>(key: K, value: Settings[K]) {
     setSettings((prev) => (prev ? { ...prev, [key]: value } : prev));
@@ -65,13 +64,14 @@ export default function Settings() {
   async function handleSave() {
     if (!settings) return;
     setSaving(true);
+    if (pendingLanguage !== language) {
+      setLanguage(pendingLanguage);
+    }
     try {
       const result = await updateSettings(settings);
       setSettings(result.settings);
-      // Show warnings as toasts
       for (const w of result.warnings) {
         toast(w, "info");
-        // Auto-switch provider display to match what backend actually uses
       }
       if (result.warnings.length === 0) {
         toast(t("settings.saved"), "success");
@@ -83,29 +83,29 @@ export default function Settings() {
     }
   }
 
-  async function handleTest(provider: string) {
+  async function handleTest(providerId: string) {
     if (!settings) return;
-    const keyField = `${provider}_api_key` as keyof Settings;
+    const keyField = `${providerId}_api_key` as keyof Settings;
     const apiKey = settings[keyField] as string;
     if (!apiKey) {
-      toast(`Enter an API key for ${provider} first`, "info");
+      toast(t("settings.enter_api_key", { provider: providerId }), "info");
       return;
     }
-    setTesting(provider);
+    setTesting(providerId);
     try {
-      const result = await testProviderConnection(provider, apiKey);
-      setTestResults((prev) => ({ ...prev, [provider]: result }));
+      const result = await testProviderConnection(providerId, apiKey);
+      setTestResults((prev) => ({ ...prev, [providerId]: result }));
       if (!result.success) {
         toast(result.message, "error");
         update("provider", "auto");
-        toast(`Switched to Auto provider`, "info");
+        toast(t("settings.switched_to_auto"), "info");
       } else {
         toast(result.message, "success");
       }
     } catch {
-      const fail = { success: false, message: "Connection test failed" };
-      setTestResults((prev) => ({ ...prev, [provider]: fail }));
-      toast("Connection test failed", "error");
+      const fail = { success: false, message: t("settings.test_connection_failed") };
+      setTestResults((prev) => ({ ...prev, [providerId]: fail }));
+      toast(t("settings.test_connection_failed"), "error");
     } finally {
       setTesting(null);
     }
@@ -131,8 +131,8 @@ export default function Settings() {
       {/* ── Provider Selection ── */}
       <motion.div variants={fadeUp} transition={{ duration: 0.3 }}>
         <Card>
-          <h2 className="mb-1 text-lg font-semibold">AI Model</h2>
-          <p className="mb-4 text-sm text-slate-400">Choose which AI service to use for chat, code review, and documentation.</p>
+          <h2 className="mb-1 text-lg font-semibold">{t("settings.ai_model")}</h2>
+          <p className="mb-4 text-sm text-slate-400">{t("settings.ai_model_desc")}</p>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {PROVIDERS.map((p) => {
@@ -148,24 +148,24 @@ export default function Settings() {
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-white">{p.label}</span>
+                    <span className="text-sm font-medium text-white">{t(`provider.${p.id}.label`)}</span>
                     {p.local && (
                       <span className="shrink-0 rounded bg-emerald-900/50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
-                        Local
+                        {t("badge.local")}
                       </span>
                     )}
                     {p.free && !p.local && (
                       <span className="shrink-0 rounded bg-emerald-900/50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
-                        Free
+                        {t("badge.free")}
                       </span>
                     )}
                     {p.needsKey && (
                       <span className="shrink-0 rounded bg-amber-900/50 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
-                        Key
+                        {t("badge.key")}
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-[11px] leading-tight text-slate-500">{p.desc}</p>
+                  <p className="mt-1 text-[11px] leading-tight text-slate-500">{t(`provider.${p.id}.desc`)}</p>
                 </button>
               );
             })}
@@ -180,14 +180,14 @@ export default function Settings() {
               }`}
             >
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">
-                {p.label} API Key
+                {t("settings.api_key", { provider: t(`provider.${p.id}.label`) })}
               </label>
               <div className="flex gap-2">
                 <input
                   type="password"
                   value={(settings?.[`${p.id}_api_key` as keyof Settings] as string) ?? ""}
                   onChange={(e) => update(`${p.id}_api_key` as keyof Settings, e.target.value)}
-                  placeholder={`sk-... (${p.label} API key)`}
+                  placeholder={t("settings.api_key_placeholder", { provider: t(`provider.${p.id}.label`) })}
                   className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
                 />
                 <button
@@ -206,11 +206,11 @@ export default function Settings() {
                   {testing === p.id ? (
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-emerald-400" />
                   ) : testResults[p.id]?.success ? (
-                    "Connected"
+                    t("settings.connected")
                   ) : testResults[p.id]?.success === false ? (
-                    "Failed"
+                    t("settings.failed")
                   ) : (
-                    "Test"
+                    t("settings.test")
                   )}
                 </button>
               </div>
@@ -226,7 +226,7 @@ export default function Settings() {
           {/* ── Model preset (only for cloud providers) ── */}
           {isCloud && (
             <div className="mt-4 border-t border-slate-800 pt-4">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">Model quality</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">{t("settings.model_quality")}</p>
               <div className="flex gap-2">
                 {MODEL_PRESETS.map((m) => {
                   const active = settings?.provider_model === m.id;
@@ -240,8 +240,8 @@ export default function Settings() {
                           : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600"
                       }`}
                     >
-                      <div className={`text-xs font-medium ${active ? "text-emerald-400" : "text-slate-300"}`}>{m.label}</div>
-                      <div className="mt-0.5 text-[10px] text-slate-500">{m.desc}</div>
+                      <div className={`text-xs font-medium ${active ? "text-emerald-400" : "text-slate-300"}`}>{t(`preset.${m.id}.label`)}</div>
+                      <div className="mt-0.5 text-[10px] text-slate-500">{t(`preset.${m.id}.desc`)}</div>
                     </button>
                   );
                 })}
@@ -252,12 +252,12 @@ export default function Settings() {
           {/* ── Ollama specific: model name text input ── */}
           {provider === "ollama" && (
             <div className="mt-4 border-t border-slate-800 pt-4">
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">Ollama model name</label>
+              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">{t("settings.ollama_model_name")}</label>
               <input
                 type="text"
                 value={settings?.ollama_model ?? ""}
                 onChange={(e) => update("ollama_model", e.target.value)}
-                placeholder="qwen2.5-coder:7b"
+                placeholder={t("settings.ollama_model_placeholder")}
                 className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
               />
             </div>
@@ -271,7 +271,7 @@ export default function Settings() {
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="flex w-full items-center justify-between rounded-xl border border-slate-800 bg-slate-900/50 px-5 py-3 text-sm font-medium text-slate-400 transition hover:border-slate-700 hover:text-slate-300"
         >
-          <span>Advanced settings</span>
+          <span>{t("settings.advanced")}</span>
           <svg className={`h-4 w-4 transition ${showAdvanced ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
@@ -280,8 +280,8 @@ export default function Settings() {
         {showAdvanced && (
           <div className="mt-4 space-y-4">
             <Card>
-              <h3 className="mb-3 text-sm font-semibold text-white">Temperature</h3>
-              <p className="mb-3 text-xs text-slate-500">Lower = more precise. Higher = more creative.</p>
+              <h3 className="mb-3 text-sm font-semibold text-white">{t("settings.temperature")}</h3>
+              <p className="mb-3 text-xs text-slate-500">{t("settings.temperature_desc")}</p>
               <input
                 type="range"
                 min="0"
@@ -292,15 +292,15 @@ export default function Settings() {
                 className="w-full accent-emerald-500"
               />
               <div className="mt-1 flex justify-between text-[11px] text-slate-600">
-                <span>0 — Precise</span>
+                <span>{t("settings.temperature_precise")}</span>
                 <span className="font-mono text-emerald-400">{settings?.temperature?.toFixed(1) ?? "0.2"}</span>
-                <span>2 — Creative</span>
+                <span>{t("settings.temperature_creative")}</span>
               </div>
             </Card>
 
             <Card>
-              <h3 className="mb-3 text-sm font-semibold text-white">Max tokens</h3>
-              <p className="mb-2 text-xs text-slate-500">Maximum response length from the AI.</p>
+              <h3 className="mb-3 text-sm font-semibold text-white">{t("settings.max_tokens")}</h3>
+              <p className="mb-2 text-xs text-slate-500">{t("settings.max_tokens_desc")}</p>
               <input
                 type="number"
                 min={64}
@@ -314,8 +314,8 @@ export default function Settings() {
 
             {provider === "ollama" && (
               <Card>
-                <h3 className="mb-3 text-sm font-semibold text-white">Ollama server URL</h3>
-                <p className="mb-2 text-xs text-slate-500">Change only if Ollama runs on a different machine.</p>
+                <h3 className="mb-3 text-sm font-semibold text-white">{t("settings.ollama_url")}</h3>
+                <p className="mb-2 text-xs text-slate-500">{t("settings.ollama_url_desc")}</p>
                 <input
                   type="text"
                   value={settings?.ollama_base_url ?? "http://localhost:11434"}
@@ -326,18 +326,18 @@ export default function Settings() {
             )}
 
             <Card>
-              <h3 className="mb-3 text-sm font-semibold text-white">RAG (Code Indexing)</h3>
-              <p className="mb-3 text-xs text-slate-500">How code is split and searched for AI context.</p>
+              <h3 className="mb-3 text-sm font-semibold text-white">{t("settings.rag")}</h3>
+              <p className="mb-3 text-xs text-slate-500">{t("settings.rag_desc_short")}</p>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { key: "rag_chunk_lines" as const, label: "Chunk size (lines)", min: 10, max: 500, step: 5 },
-                  { key: "rag_overlap_lines" as const, label: "Overlap (lines)", min: 0, max: 100, step: 1 },
-                  { key: "rag_max_chunks_per_file" as const, label: "Max chunks / file", min: 1, max: 200, step: 1 },
-                  { key: "rag_max_results" as const, label: "Max search results", min: 1, max: 50, step: 1 },
-                ].map(({ key, label, min, max, step }) => (
+                  { key: "rag_chunk_lines" as const, labelKey: "settings.rag_chunk_lines", min: 10, max: 500, step: 5 },
+                  { key: "rag_overlap_lines" as const, labelKey: "settings.rag_overlap", min: 0, max: 100, step: 1 },
+                  { key: "rag_max_chunks_per_file" as const, labelKey: "settings.rag_max_chunks", min: 1, max: 200, step: 1 },
+                  { key: "rag_max_results" as const, labelKey: "settings.rag_max_results", min: 1, max: 50, step: 1 },
+                ].map(({ key, labelKey, min, max, step }) => (
                   <div key={key}>
                     <label className="mb-1 block text-[11px] text-slate-500">
-                      {label}: <span className="text-emerald-400">{settings?.[key] ?? 0}</span>
+                      {t(labelKey)}: <span className="text-emerald-400">{settings?.[key] ?? 0}</span>
                     </label>
                     <input
                       type="number"
@@ -364,9 +364,9 @@ export default function Settings() {
             {languages.map((lang) => (
               <button
                 key={lang}
-                onClick={() => setLanguage(lang)}
+                onClick={() => setPendingLanguage(lang)}
                 className={`rounded-lg border px-5 py-2.5 text-sm font-medium transition ${
-                  language === lang
+                  pendingLanguage === lang
                     ? "border-emerald-500 bg-emerald-600 text-white"
                     : "border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500"
                 }`}

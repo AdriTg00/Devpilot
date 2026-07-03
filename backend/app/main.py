@@ -134,22 +134,22 @@ API_V1 = "/api/v1"
 
 app.include_router(auth_router, prefix=API_V1)
 
-# Chat — protegido (cada request cuesta tokens/cuota)
+# Chat — protected (each request costs tokens/quota)
 app.include_router(chat_router, prefix=API_V1, dependencies=[Depends(get_current_user)])
 
-# Projects — protegido (mutaciones y acceso a filesystem)
+# Projects — protected (mutations & filesystem access)
 app.include_router(project_router, prefix=API_V1, dependencies=[Depends(get_current_user)])
 
-# Tools — protegido (lectura de filesystem)
+# Tools — protected (filesystem reads)
 app.include_router(tools_router, prefix=API_V1, dependencies=[Depends(get_current_user)])
 
-# Settings — protegido (configuracion del sistema)
+# Settings — protected (system configuration)
 app.include_router(settings_router, prefix=API_V1, dependencies=[Depends(get_current_user)])
 
-# Shares — crear shares protegido, ver shares público
+# Shares — create shares protected, view shares public
 app.include_router(shares_router, prefix=API_V1, dependencies=[Depends(get_current_user)])
 
-# ── Public endpoints (sin versioning, sin auth) ───────────────────────────
+# ── Public endpoints (no versioning, no auth) ─────────────────────────────
 
 app_start_time = time.time()
 

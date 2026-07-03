@@ -24,11 +24,11 @@ export default function RAGStatus() {
     setRebuilding(true);
     try {
       const result = await reindexProject(currentPath);
-      toast(`${result.files} files reindexed`, "success");
+      toast(t("rag.reindexed", { files: result.files }), "success");
       const updated = await getRAGStatus(currentPath);
       setStatus(updated);
     } catch {
-      toast("Rebuild failed", "error");
+      toast(t("rag.rebuild_failed"), "error");
     } finally {
       setRebuilding(false);
     }
@@ -37,10 +37,10 @@ export default function RAGStatus() {
   async function handleClear() {
     try {
       await clearRAGIndex(currentPath);
-      toast("RAG index cleared", "success");
+      toast(t("rag.clear_success"), "success");
       setStatus(null);
     } catch {
-      toast("Clear failed", "error");
+      toast(t("rag.clear_failed"), "error");
     }
   }
 

@@ -17,7 +17,7 @@ const fadeUp = {
 
 export default function ProjectActions() {
   const { currentPath, analysis } = useProject();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
 
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [explainLoading, setExplainLoading] = useState(false);
@@ -60,11 +60,11 @@ export default function ProjectActions() {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4">
         <Button onClick={handleSummary} loading={summaryLoading}>
-          {summaryLoading ? "Generating Summary…" : "AI Summary"}
+          {summaryLoading ? t("project_actions.generating_summary") : t("project_actions.summary")}
         </Button>
 
         <Button onClick={handleExplain} loading={explainLoading} variant="secondary">
-          {explainLoading ? "Analyzing Project…" : "Explain Project"}
+          {explainLoading ? t("project_actions.analyzing") : t("project_actions.explain")}
         </Button>
       </div>
 
@@ -79,7 +79,7 @@ export default function ProjectActions() {
             transition={{ duration: 0.3 }}
           >
             <Card>
-              <h3 className="mb-3 text-lg font-semibold">Project Summary</h3>
+              <h3 className="mb-3 text-lg font-semibold">{t("project_actions.project_summary")}</h3>
               <div className="max-h-80 overflow-y-auto">
                 <TypingEffect text={summary} loading={summaryLoading} />
               </div>
@@ -97,7 +97,7 @@ export default function ProjectActions() {
             transition={{ duration: 0.3 }}
           >
             <Card>
-              <h3 className="mb-3 text-lg font-semibold">Project Analysis</h3>
+              <h3 className="mb-3 text-lg font-semibold">{t("project_actions.project_analysis")}</h3>
               <div className="max-h-80 overflow-y-auto">
                 <TypingEffect text={explanation} loading={explainLoading} />
               </div>

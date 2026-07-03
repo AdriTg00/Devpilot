@@ -1,4 +1,4 @@
-"""Configuracion de base de datos SQLite."""
+"""SQLite database configuration."""
 import os
 from pathlib import Path
 
@@ -28,5 +28,5 @@ def init_db():
     Base.metadata.create_all(bind=engine)
 
 
-# Crear tablas al import (antes de que los servicios las consulten)
+# Create tables on import (before services query them)
 init_db()

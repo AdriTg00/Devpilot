@@ -10,7 +10,7 @@ from app.tools.file_reader import read_file
 logger = logging.getLogger(__name__)
 
 _analysis_cache: dict[str, dict] = {}
-_analysis_cache_ttl: int = 300  # 5 minutos
+_analysis_cache_ttl: int = 300  # 5 minutes
 
 
 class ProjectService:
@@ -69,7 +69,7 @@ class ProjectService:
                 by_type[ext]["functions"] += stats.get("functions", 0) + stats.get("selectors", 0)
                 by_type[ext]["classes"] += stats.get("classes", 0) + stats.get("interfaces", 0)
             except Exception as e:
-                logger.warning(f"No se pudo analizar el archivo {file}: {e}")
+                logger.warning(f"Could not analyze file {file}: {e}")
 
         result = {
             "files": total_files,

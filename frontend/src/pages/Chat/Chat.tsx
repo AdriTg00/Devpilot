@@ -148,7 +148,7 @@ export default function Chat() {
         history.map((m) => ({ id: ++msgId, role: m.role as "user" | "assistant", content: m.content })),
       );
     } catch {
-      toast("Error loading session", "error");
+      toast(t("chat.error_loading_session"), "error");
     }
   }
 
@@ -160,7 +160,7 @@ export default function Chat() {
       setMessages([]);
       return session;
     } catch {
-      toast("Error creating session", "error");
+      toast(t("chat.error_creating_session"), "error");
       return null;
     }
   }
@@ -174,7 +174,7 @@ export default function Chat() {
         setMessages([]);
       }
     } catch {
-      toast("Error deleting session", "error");
+      toast(t("chat.error_deleting_session"), "error");
     }
   }
 
@@ -252,7 +252,7 @@ export default function Chat() {
       );
       setLoading(false);
       setTypingId(null);
-      toast("Error al obtener respuesta", "error");
+      toast(t("chat.error_response"), "error");
     };
 
     if (currentPath) {
@@ -282,7 +282,7 @@ export default function Chat() {
           <button
             onClick={() => setSessionsOpen(!sessionsOpen)}
             className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
-            title={sessionsOpen ? "Collapse" : "Expand"}
+            title={sessionsOpen ? t("chat.collapse") : t("chat.expand")}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sessionsOpen ? "M11 19l-7-7 7-7m8 14l-7-7 7-7" : "M13 5l7 7-7 7M5 5l7 7-7 7"} />
@@ -292,7 +292,7 @@ export default function Chat() {
             <button
               onClick={handleNewSession}
               className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-emerald-400"
-              title="New session"
+              title={t("chat.new_session")}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -305,7 +305,7 @@ export default function Chat() {
           <div className="flex-1 space-y-1 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/50 p-2">
             {sessions.length === 0 && (
               <p className="px-2 py-8 text-center text-xs text-slate-500">
-                No sessions yet
+                {t("chat.no_sessions")}
               </p>
             )}
             {sessions.map((s) => (
@@ -325,7 +325,7 @@ export default function Chat() {
                     handleDeleteSession(s.id);
                   }}
                   className="shrink-0 rounded p-0.5 text-slate-600 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
-                  title="Delete"
+                  title={t("chat.delete")}
                 >
                   <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -357,9 +357,9 @@ export default function Chat() {
               try {
                 await clearChatMemory();
                 setMessages([]);
-                toast("Historial limpiado", "success");
+                toast(t("chat.history_cleared"), "success");
               } catch {
-                toast("Error al limpiar historial", "error");
+                toast(t("chat.error_clearing"), "error");
               }
             }}
             className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition hover:border-red-800 hover:text-red-400"
@@ -417,7 +417,7 @@ export default function Chat() {
                       {msg.sources && msg.sources.length > 0 && typingId !== msg.id && (
                         <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-700/50 pt-2">
                           <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
-                            Sources:
+                            {t("chat.sources")}
                           </span>
                           {msg.sources.map((src, i) => (
                             <span
@@ -451,7 +451,7 @@ export default function Chat() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    Searching project code...
+                    {t("chat.searching")}
                   </div>
                 ) : (
                   <CodeSkeleton />

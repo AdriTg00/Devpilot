@@ -322,7 +322,6 @@ export default function Documentation() {
       <DocSection title="API Endpoints">
         <p className="mb-2 text-xs text-slate-500">
           All API routes are prefixed with <code className="text-emerald-400">/api/v1</code>.
-          Protected routes require a JWT token (login via <code className="text-emerald-400">POST /api/v1/auth/login</code>).
           Full Swagger docs at <a href="http://localhost:8000/docs" className="text-emerald-400 underline" target="_blank" rel="noopener">/docs</a>.
         </p>
         <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
@@ -330,7 +329,6 @@ export default function Documentation() {
             ["GET /health", "Basic health check"],
             ["GET /health/detailed", "Full service status"],
             ["GET /metrics", "Prometheus metrics"],
-            ["POST /api/v1/auth/login", "JWT authentication"],
             ["GET/PUT /api/v1/settings", "LLM/RAG settings"],
             ["POST /api/v1/project/analyze", "Analyze project stats"],
             ["POST /api/v1/project/question-stream", "Streaming project Q&A"],

@@ -9,8 +9,6 @@ anthropic
 google-generativeai
 chromadb
 sqlalchemy
-pyjwt
-bcrypt
 slowapi
 python-json-logger
 prometheus-client

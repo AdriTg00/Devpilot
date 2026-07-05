@@ -5,7 +5,7 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from prometheus_client import REGISTRY, Counter, Histogram, generate_latest
@@ -54,9 +54,7 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     from app.db.database import init_db
-    from app.services.auth_service import seed_default_user
     init_db()
-    seed_default_user()
     yield
 
 # ── App ───────────────────────────────────────────────────────────────────
@@ -122,32 +120,19 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # ── Routers (API versioning con /api/v1) ──────────────────────────────────
 
-from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
 from app.api.projects import router as project_router
 from app.api.settings import router as settings_router
 from app.api.shares import router as shares_router
 from app.api.tools import router as tools_router
-from app.core.security import get_current_user
 
 API_V1 = "/api/v1"
 
-app.include_router(auth_router, prefix=API_V1)
-
-# Chat — protected (each request costs tokens/quota)
-app.include_router(chat_router, prefix=API_V1, dependencies=[Depends(get_current_user)])
-
-# Projects — protected (mutations & filesystem access)
-app.include_router(project_router, prefix=API_V1, dependencies=[Depends(get_current_user)])
-
-# Tools — protected (filesystem reads)
-app.include_router(tools_router, prefix=API_V1, dependencies=[Depends(get_current_user)])
-
-# Settings — protected (system configuration)
-app.include_router(settings_router, prefix=API_V1, dependencies=[Depends(get_current_user)])
-
-# Shares — create shares protected, view shares public
-app.include_router(shares_router, prefix=API_V1, dependencies=[Depends(get_current_user)])
+app.include_router(chat_router, prefix=API_V1)
+app.include_router(project_router, prefix=API_V1)
+app.include_router(tools_router, prefix=API_V1)
+app.include_router(settings_router, prefix=API_V1)
+app.include_router(shares_router, prefix=API_V1)
 
 # ── Public endpoints (no versioning, no auth) ─────────────────────────────
 

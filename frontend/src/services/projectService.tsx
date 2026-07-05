@@ -2,13 +2,8 @@ import { api, BASE, ROOT_BASE } from "./api";
 import type { ProjectAnalysis } from "../types/Project";
 import type { ProjectFile } from "../types/Files";
 
-function fetchAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem("devpilot_token");
-  if (!token) return { "Content-Type": "application/json" };
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
+function jsonHeaders(): Record<string, string> {
+  return { "Content-Type": "application/json" };
 }
 
 export interface UploadResponse {
@@ -94,7 +89,7 @@ async function streamFetch(
   try {
       const response = await fetch(BASE + url, {
       method: "POST",
-      headers: fetchAuthHeaders(),
+      headers: jsonHeaders(),
       body: JSON.stringify(body),
     });
 
@@ -299,7 +294,7 @@ export function streamAiFix(
   try {
     fetch(url, {
       method: "POST",
-      headers: fetchAuthHeaders(),
+      headers: jsonHeaders(),
       body,
     })
       .then(async (response) => {
@@ -359,7 +354,7 @@ export function streamAiFix(
 export async function exportProject(path: string, language: string) {
   const response = await fetch(BASE + "/project/export", {
     method: "POST",
-    headers: fetchAuthHeaders(),
+    headers: jsonHeaders(),
     body: JSON.stringify({ path, language }),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -455,7 +450,7 @@ export function streamToolChat(
   try {
     fetch(url, {
       method: "POST",
-      headers: fetchAuthHeaders(),
+      headers: jsonHeaders(),
       body,
     })
       .then(async (response) => {
@@ -560,7 +555,7 @@ export async function explainFileStream(
   try {
     const response = await fetch(BASE + "/project/explain-file", {
       method: "POST",
-      headers: fetchAuthHeaders(),
+      headers: jsonHeaders(),
       body: JSON.stringify({ path, language }),
     });
 

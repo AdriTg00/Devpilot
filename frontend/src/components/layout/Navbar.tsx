@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useLanguage } from "../../contexts/LanguageContext";
 import logo from "../../assets/DevPilotSinFondo.png";
 
@@ -12,12 +12,6 @@ const linkKeys = [
 
 export default function Navbar() {
   const { t } = useLanguage();
-  const navigate = useNavigate();
-
-  function handleLogout() {
-    localStorage.removeItem("devpilot_token");
-    navigate("/login");
-  }
 
   return (
     <header className="relative overflow-hidden border-b border-slate-800 bg-slate-900">
@@ -53,12 +47,6 @@ export default function Navbar() {
             {t(link.key)}
           </NavLink>
         ))}
-        <button
-          onClick={handleLogout}
-          className="ml-auto whitespace-nowrap border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 transition hover:text-red-400 hover:border-slate-600"
-        >
-          Logout
-        </button>
       </nav>
     </header>
   );

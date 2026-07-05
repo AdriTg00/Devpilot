@@ -19,43 +19,6 @@ class TestHealth:
         assert "services" in data
         assert "ollama" in data["services"]
 
-
-class TestAuth:
-    def test_login_valid_returns_token(self):
-        r = client.post("/api/v1/auth/login", json={
-            "username": "admin", "password": "admin",
-        })
-        assert r.status_code == 200
-        data = r.json()
-        assert "access_token" in data
-        assert data["token_type"] == "bearer"
-
-    def test_login_invalid_returns_401(self):
-        r = client.post("/api/v1/auth/login", json={
-            "username": "admin", "password": "wrong",
-        })
-        assert r.status_code == 401
-
-    def test_protected_route_rejects_no_token(self):
-        r = client.get("/api/v1/settings")
-        assert r.status_code == 401
-
-    def test_protected_route_accepts_valid_token(self):
-        r = client.post("/api/v1/auth/login", json={
-            "username": "admin", "password": "admin",
-        })
-        token = r.json()["access_token"]
-        r = client.get("/api/v1/settings", headers={
-            "Authorization": f"Bearer {token}",
-        })
-        assert r.status_code == 200
-
-    def test_protected_route_rejects_bad_token(self):
-        r = client.get("/api/v1/settings", headers={
-            "Authorization": "Bearer bad.token.here",
-        })
-        assert r.status_code == 401
-
     def test_shared_project_no_auth_required(self):
         r = client.get("/shared/nonexistent")
         assert r.status_code == 404
@@ -67,9 +30,7 @@ class TestAuth:
 
 class TestVersioning:
     def test_v1_prefix_on_api_routes(self):
-        r = client.post("/api/v1/auth/login", json={
-            "username": "admin", "password": "admin",
-        })
+        r = client.get("/api/v1/settings")
         assert r.status_code == 200
 
     def test_legacy_paths_return_404(self):

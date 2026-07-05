@@ -3,26 +3,11 @@ import axios from "axios";
 const ENV = import.meta.env.VITE_API_URL;
 const BASE = (ENV !== undefined ? ENV : "http://localhost:8000") + "/api/v1";
 
-function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem("devpilot_token");
-  if (!token) return {};
-  return { Authorization: `Bearer ${token}` };
-}
-
 export const api = axios.create({
   baseURL: BASE,
   headers: {
     "Content-Type": "application/json",
-    ...getAuthHeaders(),
   },
-});
-
-api.interceptors.request.use((config) => {
-  const headers = getAuthHeaders();
-  for (const [k, v] of Object.entries(headers)) {
-    config.headers.set(k, v);
-  }
-  return config;
 });
 
 export interface Settings {

@@ -178,10 +178,27 @@ class MemoryService:
                 "name": name or f"Session {len(sessions) + 1}",
                 "created_at": now,
                 "updated_at": now,
+                "project": project,
             }
             sessions.append(entry)
             self._save_sessions(db, project, sessions)
             return entry
+        finally:
+            db.close()
+
+    def get_session_project(self, session_id: str) -> str | None:
+        """Return the project path associated with a session, or None if not found."""
+        db = SessionLocal()
+        try:
+            row = db.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
+            if not row or not isinstance(row.value, dict):
+                return None
+            for project, sessions in row.value.items():
+                for s in sessions:
+                    if s.get("id") == session_id:
+                        # prefer the stored project field, fall back to the index key
+                        return s.get("project") or (project if project != "_casual" else None)
+            return None
         finally:
             db.close()
 

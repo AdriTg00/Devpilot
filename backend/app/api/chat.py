@@ -12,6 +12,7 @@ from app.models.chat import (
 )
 from app.services.llm_service import get_llm_service
 from app.services.memory_service import memory_service
+from app.services.rag_service import rag_service
 from app.tools.tool_definitions import TOOLS
 
 router = APIRouter(tags=["chat"])
@@ -137,42 +138,82 @@ _TOOL_SYSTEM_PROMPT = (
 )
 
 
+def _resolve_project_path(request: ToolChatRequest) -> str | None:
+    """Return the project path from the request, or look it up from the session if missing."""
+    if request.project_path:
+        return request.project_path
+    if request.session_id:
+        return memory_service.get_session_project(request.session_id)
+    return None
+
+
+def _build_rag_context(message: str, project_path: str | None) -> str:
+    """Query RAG for semantically relevant code snippets. Returns empty string if unavailable."""
+    if not project_path:
+        return ""
+    try:
+        return rag_service.search(message, project_path) or ""
+    except Exception:
+        return ""
+
+
+def _save_turn(session_id: str | None, project_path: str | None, user_msg: str, assistant_msg: str):
+    if session_id:
+        memory_service.add_session_message(session_id, "user", user_msg)
+        memory_service.add_session_message(session_id, "assistant", assistant_msg)
+    elif project_path:
+        memory_service.add(project_path, "user", user_msg)
+        memory_service.add(project_path, "assistant", assistant_msg)
+    else:
+        memory_service.add(_CASUAL_KEY, "user", user_msg)
+        memory_service.add(_CASUAL_KEY, "assistant", assistant_msg)
+
+
 @router.post("/chat/tool-stream")
 def chat_tool_stream(request: ToolChatRequest):
     llm = get_llm_service()
 
+    # Resolve project path — from request or from session metadata
+    project_path = _resolve_project_path(request)
+
+    # Retrieve semantically relevant code chunks via RAG
+    rag_context = _build_rag_context(request.message, project_path)
+
     # Build user prompt with conversation history
-    user_prompt = _build_user_prompt(request.message, request.session_id, request.project_path)
+    user_prompt = _build_user_prompt(request.message, request.session_id, project_path)
 
     # If the provider doesn't support tool calling, use regular stream with project context
     if not llm.provider.supports_tools:
         system = _CHAT_SYSTEM_PROMPT
-        if request.project_path:
-            system += f"\n\nThe user's current project is at: {request.project_path}"
+        if project_path:
+            system += f"\n\nThe user's current project is at: {project_path}"
+        if rag_context:
+            system += f"\n\nRelevant code snippets from the project (semantic search):\n{rag_context}"
         stream = llm.ask_with_system_stream(system, user_prompt)
-        def generate():
+
+        def generate_no_tools():
             full = ""
             for chunk in stream:
                 full += chunk
                 yield chunk
-            if request.session_id:
-                memory_service.add_session_message(request.session_id, "user", request.message)
-                memory_service.add_session_message(request.session_id, "assistant", full)
-            elif request.project_path:
-                memory_service.add(request.project_path, "user", request.message)
-                memory_service.add(request.project_path, "assistant", full)
-            else:
-                memory_service.add(_CASUAL_KEY, "user", request.message)
-                memory_service.add(_CASUAL_KEY, "assistant", full)
+            _save_turn(request.session_id, project_path, request.message, full)
+
         return StreamingResponse(
-            generate(),
+            generate_no_tools(),
             media_type="text/plain",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     system = _TOOL_SYSTEM_PROMPT
-    if request.project_path:
-        system += f"\n\nProyecto activo: {request.project_path}"
+    if project_path:
+        system += f"\n\nProyecto activo: {project_path}"
+    if rag_context:
+        system += (
+            f"\n\nFragmentos de código relevantes encontrados por búsqueda semántica:\n"
+            f"{rag_context}\n"
+            f"Usa estos fragmentos como punto de partida. Si necesitas más detalle, "
+            f"usa tus herramientas para leer los archivos completos."
+        )
 
     stream = llm.ask_with_system_tools_stream(system, user_prompt, TOOLS)
 
@@ -182,15 +223,7 @@ def chat_tool_stream(request: ToolChatRequest):
             if not chunk.startswith("__TOOL__"):
                 full += chunk
             yield chunk
-        if request.session_id:
-            memory_service.add_session_message(request.session_id, "user", request.message)
-            memory_service.add_session_message(request.session_id, "assistant", full)
-        elif request.project_path:
-            memory_service.add(request.project_path, "user", request.message)
-            memory_service.add(request.project_path, "assistant", full)
-        else:
-            memory_service.add(_CASUAL_KEY, "user", request.message)
-            memory_service.add(_CASUAL_KEY, "assistant", full)
+        _save_turn(request.session_id, project_path, request.message, full)
 
     return StreamingResponse(
         generate(),

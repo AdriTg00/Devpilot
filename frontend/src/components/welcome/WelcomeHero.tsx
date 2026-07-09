@@ -94,23 +94,38 @@ export default function WelcomeHero({ onGetStarted }: Props) {
               filter: "blur(80px)",
             }}
           />
-          {videoError ? (
-            <img
-              src={fallbackImg}
-              alt="DevPilot"
-              className="relative h-auto w-full max-h-[55vh] object-contain"
-            />
-          ) : (
-            <video
-              src="/DevPilotSinFondo2.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              onError={() => setVideoError(true)}
-              className="relative h-auto w-full max-h-[55vh] object-contain"
-            />
-          )}
+          <div className="relative rounded-2xl border border-emerald-500/40 bg-slate-950/60 p-1 shadow-[0_0_20px_rgba(16,185,129,0.25),0_0_60px_rgba(16,185,129,0.1),inset_0_0_20px_rgba(16,185,129,0.05)]">
+            <div
+              className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
+              style={{ mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)", maskComposite: "exclude", WebkitMaskComposite: "xor" }}
+            >
+              <motion.div
+                className="absolute -inset-[100%]"
+                animate={{ rotate: [0, 360] }}
+                transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+                style={{
+                  background: "conic-gradient(from 0deg, transparent 0%, rgba(16,185,129,0.6) 25%, transparent 50%, rgba(16,185,129,0.6) 75%, transparent 100%)",
+                }}
+              />
+            </div>
+            {videoError ? (
+              <img
+                src={fallbackImg}
+                alt="DevPilot"
+                className="relative h-auto w-full max-h-[55vh] object-contain"
+              />
+            ) : (
+              <video
+                src="/DevPilotSinFondo2.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                onError={() => setVideoError(true)}
+                className="relative h-auto w-full max-h-[55vh] object-contain"
+              />
+            )}
+          </div>
         </motion.div>
 
         <motion.p

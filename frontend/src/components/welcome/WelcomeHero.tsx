@@ -53,40 +53,64 @@ export default function WelcomeHero({ onGetStarted }: Props) {
           background: "radial-gradient(ellipse at center 40%, rgba(16, 185, 129, 0.08) 0%, transparent 60%)",
         }}
       />
-      <motion.div className="flex flex-col items-center gap-10">
+      <motion.div className="flex flex-col items-center gap-12">
         <motion.div
           variants={scaleIn}
-          transition={{ duration: 0.7, ease: "easeOut" }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          className="relative flex max-w-md items-center justify-center px-4 md:max-w-xl"
         >
-          <div
-            className="overflow-hidden"
-            style={{
-              borderRadius: "28px",
-              boxShadow: "0 0 30px rgba(16,185,129,0.2), 0 0 60px rgba(16,185,129,0.08)",
+          <motion.div
+            className="pointer-events-none absolute -inset-20 rounded-full"
+            animate={{
+              scale: [1, 1.08, 1],
+              opacity: [0.5, 0.9, 0.5],
             }}
-          >
-            {videoError ? (
-              <img
-                src={fallbackImg}
-                alt="DevPilot"
-                className="block h-48 w-48 md:h-64 md:w-64"
-                style={{ borderRadius: "28px" }}
-              />
-            ) : (
-              <video
-                src="/DevPilotSinFondo2.mp4"
-                autoPlay
-                loop
-                muted
-                playsInline
-                onError={() => setVideoError(true)}
-                className="block h-48 w-48 md:h-64 md:w-64"
-                style={{
-                  borderRadius: "28px",
-                }}
-              />
-            )}
-          </div>
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            style={{
+              background:
+                "radial-gradient(circle, rgba(16,185,129,0.4) 0%, rgba(16,185,129,0.15) 30%, rgba(16,185,129,0.05) 50%, transparent 70%)",
+              filter: "blur(60px)",
+            }}
+          />
+          <motion.div
+            className="pointer-events-none absolute -inset-32 rounded-full"
+            animate={{
+              scale: [1, 1.05, 1],
+              opacity: [0.3, 0.6, 0.3],
+            }}
+            transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.5,
+            }}
+            style={{
+              background:
+                "radial-gradient(circle, rgba(16,185,129,0.2) 0%, rgba(16,185,129,0.08) 30%, transparent 60%)",
+              filter: "blur(80px)",
+            }}
+          />
+          {videoError ? (
+            <img
+              src={fallbackImg}
+              alt="DevPilot"
+              className="relative h-auto w-full max-h-[55vh] object-contain"
+            />
+          ) : (
+            <video
+              src="/DevPilotSinFondo2.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              onError={() => setVideoError(true)}
+              className="relative h-auto w-full max-h-[55vh] object-contain"
+            />
+          )}
         </motion.div>
 
         <motion.p

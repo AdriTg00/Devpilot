@@ -138,45 +138,6 @@ export default function FileViewer() {
     }
   }, [matchIndex, matches]);
 
-  const handleGlobalKeydown = useCallback((e: KeyboardEvent) => {
-    const editMode = editing;
-    if (e.key === "f" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !editMode) {
-      e.preventDefault();
-      setSearchActive((prev) => !prev);
-    }
-    if (e.key === "Escape" && searchActive) {
-      e.preventDefault();
-      setSearchActive(false);
-    }
-    if (e.key === "e" && (e.ctrlKey || e.metaKey) && !e.shiftKey && selectedFile) {
-      e.preventDefault();
-      if (!editing) startEditing();
-      else cancelEditing();
-    }
-    if (e.key === "s" && (e.ctrlKey || e.metaKey) && editing) {
-      e.preventDefault();
-      handleSave();
-    }
-  }, [editing, searchActive, selectedFile, fileContent]);
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleGlobalKeydown);
-    return () => window.removeEventListener("keydown", handleGlobalKeydown);
-  }, [handleGlobalKeydown]);
-
-  if (!selectedFile) {
-    return (
-      <Card>
-        <h2 className="mb-6 text-xl font-semibold">
-          {t("viewer.title")}
-        </h2>
-        <p className="text-slate-400">
-          {t("viewer.select")}
-        </p>
-      </Card>
-    );
-  }
-
   function startEditing() {
     setEditContent(fileContent);
     setEditing(true);
@@ -202,6 +163,46 @@ export default function FileViewer() {
     } catch {
       toast(t("viewer.save_error"), "error");
     }
+  }
+
+  const handleGlobalKeydown = useCallback((e: KeyboardEvent) => {
+    const editMode = editing;
+    if (e.key === "f" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !editMode) {
+      e.preventDefault();
+      setSearchActive((prev) => !prev);
+    }
+    if (e.key === "Escape" && searchActive) {
+      e.preventDefault();
+      setSearchActive(false);
+    }
+    if (e.key === "e" && (e.ctrlKey || e.metaKey) && !e.shiftKey && selectedFile) {
+      e.preventDefault();
+      if (!editing) startEditing();
+      else cancelEditing();
+    }
+    if (e.key === "s" && (e.ctrlKey || e.metaKey) && editing) {
+      e.preventDefault();
+      handleSave();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, searchActive, selectedFile, fileContent]);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleGlobalKeydown);
+    return () => window.removeEventListener("keydown", handleGlobalKeydown);
+  }, [handleGlobalKeydown]);
+
+  if (!selectedFile) {
+    return (
+      <Card>
+        <h2 className="mb-6 text-xl font-semibold">
+          {t("viewer.title")}
+        </h2>
+        <p className="text-slate-400">
+          {t("viewer.select")}
+        </p>
+      </Card>
+    );
   }
 
   function navigateMatch(dir: 1 | -1) {

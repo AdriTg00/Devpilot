@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -59,11 +59,20 @@ export default function CodeReview() {
   const [loading, setLoading] = useState(false);
   const [reviewData, setReviewData] = useState<CodeReviewJsonData | null>(null);
   const [reviewError, setReviewError] = useState(false);
+  const [reviewHistory, setReviewHistory] = useState<Array<{ id: number; timestamp: Date; data: CodeReviewJsonData }>>([]);
+  const [activeReviewId, setActiveReviewId] = useState<number | null>(null);
+  const nextReviewId = useRef(1);
   const [fixingKey, setFixingKey] = useState<string | null>(null);
   const [fixingStream, setFixingStream] = useState("");
   const [fixResultKey, setFixResultKey] = useState<string | null>(null);
   const [fixResultContent, setFixResultContent] = useState("");
   const [fixOriginalContent, setFixOriginalContent] = useState("");
+
+  const activeReviewData = useMemo(() => {
+    if (reviewData) return reviewData;
+    if (!activeReviewId) return null;
+    return reviewHistory.find((h) => h.id === activeReviewId)?.data ?? null;
+  }, [reviewData, activeReviewId, reviewHistory]);
 
   if (!analysis || !currentPath) return null;
 
@@ -73,6 +82,10 @@ export default function CodeReview() {
     setReviewError(false);
     try {
       const data = await getCodeReviewJson(currentPath, language);
+      const id = nextReviewId.current++;
+      const entry = { id, timestamp: new Date(), data };
+      setReviewHistory((prev) => [entry, ...prev]);
+      setActiveReviewId(id);
       setReviewData(data);
     } catch {
       setReviewError(true);
@@ -132,8 +145,30 @@ export default function CodeReview() {
         {loading ? t("code_review.running") : t("code_review.run")}
       </Button>
 
+      {/* Review history selector */}
+      {reviewHistory.length > 1 && !loading && (
+        <div className="flex flex-wrap gap-2">
+          {reviewHistory.map((h) => {
+            const isActive = h.id === activeReviewId;
+            return (
+              <button
+                key={h.id}
+                onClick={() => { setActiveReviewId(h.id); setReviewData(null); setReviewError(false); }}
+                className={`rounded-lg border px-3 py-1.5 text-xs transition ${
+                  isActive
+                    ? "border-emerald-700 bg-emerald-600/20 text-emerald-400"
+                    : "border-slate-700 text-slate-500 hover:border-slate-600 hover:text-slate-300"
+                }`}
+              >
+                {h.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
-        {(loading || reviewData || reviewError) && (
+        {(loading || activeReviewData || reviewError) && (
           <motion.div
             key="review"
             variants={fadeUp}
@@ -150,12 +185,12 @@ export default function CodeReview() {
                 <div>
                   <h3 className="font-semibold text-white">{t("code_review.title")}</h3>
                   <p className="text-xs text-slate-500">
-                    {loading ? t("code_review.analyzing") : reviewError ? t("code_review.error") : t("code_review.categories_reviewed", { count: reviewData!.categories.length })}
+                    {loading ? t("code_review.analyzing") : reviewError ? t("code_review.error") : t("code_review.categories_reviewed", { count: activeReviewData!.categories.length })}
                   </p>
                 </div>
               </div>
 
-              {loading && !reviewData && (
+              {loading && !activeReviewData && (
                 <div className="flex items-center gap-2 py-8 text-center text-sm text-slate-500">
                   <div className="flex-1">
                     <div className="mx-auto mb-3 h-1.5 w-48 animate-pulse rounded-full bg-slate-700" />
@@ -165,21 +200,21 @@ export default function CodeReview() {
                 </div>
               )}
 
-              {reviewError && !reviewData && (
+              {reviewError && !activeReviewData && (
                 <div className="py-8 text-center text-sm text-red-400">
                   {t("code_review.failed")}
                 </div>
               )}
 
-              {reviewData && (reviewData.categories.length === 0 || reviewData.categories.every((c) => c.findings.length === 0)) && (
+              {activeReviewData && (activeReviewData.categories.length === 0 || activeReviewData.categories.every((c) => c.findings.length === 0)) && (
                 <div className="py-8 text-center text-sm text-slate-400">
                   {t("code_review.no_issues")}
                 </div>
               )}
 
-              {reviewData && reviewData.categories.some((c) => c.findings.length > 0) && (
+              {activeReviewData && activeReviewData.categories.some((c) => c.findings.length > 0) && (
                 <div className="space-y-4">
-                  {reviewData.categories.map((cat, i) => {
+                  {activeReviewData.categories.map((cat, i) => {
                     if (cat.findings.length === 0) return null;
                     const meta = categoryMeta[cat.name] || DEFAULT_META;
 

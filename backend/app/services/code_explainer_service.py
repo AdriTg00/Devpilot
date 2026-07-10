@@ -1,7 +1,9 @@
 import json
 import logging
 import re
+import time
 from pathlib import Path
+from shutil import copyfile
 
 from app.core.prompts import (
     _CODE_REVIEW_CAT_LINES,
@@ -96,8 +98,17 @@ class CodeExplainerService:
         documentation = self.generate_documentation(project_path, language)
         readme_path = Path(project_path) / "README.md"
         already_existed = readme_path.exists()
+        backup_path = None
+        if already_existed:
+            timestamp = int(time.time())
+            backup_path = str(readme_path.with_suffix(f".backup.{timestamp}.md"))
+            copyfile(str(readme_path), backup_path)
         write_file(str(readme_path), documentation)
-        return {"readme_path": str(readme_path), "already_existed": already_existed}
+        return {
+            "readme_path": str(readme_path),
+            "already_existed": already_existed,
+            "backup_path": backup_path,
+        }
 
     def _build_doc_prompt(self, project_path: str, language: str) -> str:
         project_name, context = self._build_context(

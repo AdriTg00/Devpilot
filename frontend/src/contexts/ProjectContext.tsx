@@ -37,14 +37,20 @@ function saveRecent(path: string) {
   localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 10)));
 }
 
+interface FileTab {
+  id: string;
+  file: ProjectFile;
+  content: string;
+  explanation: string;
+  loading: boolean;
+  explaining: boolean;
+}
+
 interface ProjectViewState {
   analysis: ProjectAnalysis | null;
   files: ProjectFile[];
-  selectedFile: ProjectFile | null;
-  fileContent: string;
-  fileExplanation: string;
-  fileLoading: boolean;
-  explaining: boolean;
+  fileTabs: FileTab[];
+  activeFileTabId: string | null;
 }
 
 interface ProjectTab {
@@ -68,6 +74,10 @@ interface ProjectContextType {
 
   selectFile: (file: ProjectFile) => Promise<void>;
   explainSelectedFile: () => Promise<void>;
+  fileTabs: FileTab[];
+  activeFileTabId: string | null;
+  closeFileTab: (id: string) => void;
+  switchFileTab: (id: string) => void;
 
   loading: boolean;
   uploading: boolean;
@@ -96,11 +106,8 @@ function emptyView(): ProjectViewState {
   return {
     analysis: null,
     files: [],
-    selectedFile: null,
-    fileContent: "",
-    fileExplanation: "",
-    fileLoading: false,
-    explaining: false,
+    fileTabs: [],
+    activeFileTabId: null,
   };
 }
 
@@ -114,6 +121,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [closing, setClosing] = useState(false);
   const [recentProjects, setRecentProjects] = useState<string[]>(loadRecent);
   const nextId = useRef(1);
+  const nextFileTabId = useRef(1);
 
   const previousPath = localStorage.getItem(PREV_PATH_KEY) || "";
 
@@ -122,11 +130,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const currentPath = activeTab?.path ?? "";
   const analysis = activeTab?.view.analysis ?? null;
   const files = activeTab?.view.files ?? [];
-  const selectedFile = activeTab?.view.selectedFile ?? null;
-  const fileContent = activeTab?.view.fileContent ?? "";
-  const fileExplanation = activeTab?.view.fileExplanation ?? "";
-  const fileLoading = activeTab?.view.fileLoading ?? false;
-  const explaining = activeTab?.view.explaining ?? false;
+  const activeFileTab = activeTab?.view.fileTabs.find((t) => t.id === activeTab.view.activeFileTabId) ?? null;
+  const fileTabs = activeTab?.view.fileTabs ?? [];
+  const activeFileTabId = activeTab?.view.activeFileTabId ?? null;
+  const selectedFile = activeFileTab?.file ?? null;
+  const fileContent = activeFileTab?.content ?? "";
+  const fileExplanation = activeFileTab?.explanation ?? "";
+  const fileLoading = activeFileTab?.loading ?? false;
+  const explaining = activeFileTab?.explaining ?? false;
 
   function updateView(partial: Partial<ProjectViewState>, tabId?: string) {
     const id = tabId ?? activeTabId;
@@ -134,6 +145,26 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setTabs((prev) =>
       prev.map((t) =>
         t.id === id ? { ...t, view: { ...t.view, ...partial } } : t,
+      ),
+    );
+  }
+
+  function updateFileTab(fileTabId: string, partial: Partial<FileTab>, pTabId?: string) {
+    const pid = pTabId ?? activeTabId;
+    if (!pid) return;
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.id === pid
+          ? {
+              ...t,
+              view: {
+                ...t.view,
+                fileTabs: t.view.fileTabs.map((ft) =>
+                  ft.id === fileTabId ? { ...ft, ...partial } : ft,
+                ),
+              },
+            }
+          : t,
       ),
     );
   }
@@ -171,11 +202,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       addTab(workspacePath, name, {
         analysis: analysisData,
         files: data.files || [],
-        selectedFile: null,
-        fileContent: "",
-        fileExplanation: "",
-        fileLoading: false,
-        explaining: false,
+        fileTabs: [],
+        activeFileTabId: null,
       });
       toast("Proyecto subido y analizado correctamente", "success");
     } catch (err) {
@@ -242,12 +270,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         projectPath: path,
       };
       const projectFiles = await getFiles(path);
+      // Don't reset fileTabs — keep open files across re-analysis
       updateView({
         analysis: analysisData,
         files: projectFiles,
-        selectedFile: null,
-        fileContent: "",
-        fileExplanation: "",
       }, tabId);
       saveRecent(path);
       setRecentProjects(loadRecent());
@@ -266,30 +292,57 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }
 
   async function selectFile(file: ProjectFile) {
-    updateView({ selectedFile: file, fileExplanation: "", fileLoading: true });
+    if (!activeTabId) return;
+    const existing = activeTab?.view.fileTabs.find((ft) => ft.file.path === file.path);
+    if (existing) {
+      updateView({ activeFileTabId: existing.id });
+      return;
+    }
+    const id = `file-${nextFileTabId.current++}`;
+    const tab: FileTab = { id, file, content: "", explanation: "", loading: true, explaining: false };
+    updateView({
+      fileTabs: [...(activeTab?.view.fileTabs ?? []), tab],
+      activeFileTabId: id,
+    });
     try {
       const data = await getFileContent(file.path);
-      updateView({ fileContent: data.content });
+      updateFileTab(id, { content: data.content, loading: false });
     } catch (error) {
       console.error("Error loading file:", error);
       toast("No se pudo cargar el archivo", "error");
-      updateView({ fileContent: "" });
-    } finally {
-      updateView({ fileLoading: false });
+      updateFileTab(id, { content: "", loading: false });
     }
+  }
+
+  function closeFileTab(fileTabId: string) {
+    if (!activeTabId) return;
+    const currentTabs = activeTab?.view.fileTabs ?? [];
+    const remaining = currentTabs.filter((ft) => ft.id !== fileTabId);
+    let nextActive: string | null = null;
+    if (activeTab?.view.activeFileTabId === fileTabId) {
+      const idx = currentTabs.findIndex((ft) => ft.id === fileTabId);
+      nextActive = remaining[Math.min(idx, remaining.length - 1)]?.id ?? null;
+    }
+    updateView({ fileTabs: remaining, activeFileTabId: nextActive ?? activeTab?.view.activeFileTabId });
+  }
+
+  function switchFileTab(fileTabId: string) {
+    updateView({ activeFileTabId: fileTabId });
   }
 
   async function explainSelectedFile() {
     const file = selectedFile;
-    if (!file) return;
-    updateView({ explaining: true, fileExplanation: "" });
+    if (!file || !activeTabId) return;
+    const ftId = activeTab?.view.activeFileTabId;
+    if (!ftId) return;
+    updateFileTab(ftId, { explaining: true, explanation: "" });
     await explainFileStream(
       file.path,
       language,
-      (text: string) => updateView({ fileExplanation: text }),
-      () => updateView({ explaining: false }),
+      (text: string) => updateFileTab(ftId, { explanation: text }),
+      () => updateFileTab(ftId, { explaining: false }),
       () => {
-        updateView({ fileExplanation: t("viewer.error"), explaining: false });
+        updateFileTab(ftId, { explanation: t("viewer.error"), explaining: false });
         toast("Error al explicar el archivo", "error");
       },
     );
@@ -311,6 +364,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
         selectFile,
         explainSelectedFile,
+        fileTabs,
+        activeFileTabId,
+        closeFileTab,
+        switchFileTab,
 
         loading,
         uploading,

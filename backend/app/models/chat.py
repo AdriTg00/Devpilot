@@ -31,6 +31,17 @@ class SessionMessage(BaseModel):
     content: str
 
 
+class SessionSearchMatch(BaseModel):
+    role: str
+    content: str
+    created_at: str = ""
+
+
+class SessionSearchResult(BaseModel):
+    session: SessionEntry
+    matches: list[SessionSearchMatch]
+
+
 class ToolChatRequest(BaseModel):
     message: str = Field(..., min_length=1, description="Mensaje para el asistente")
     project_path: str = Field(..., min_length=1, description="Ruta del proyecto activo")

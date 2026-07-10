@@ -204,14 +204,16 @@ class RAGService:
 
         logger.info("Indexed %d chunks for %s", len(chunks), path)
 
-    def search(self, query: str, project: str, n_results: int | None = None) -> str:
+    def search(self, query: str | list[str], project: str, n_results: int | None = None) -> str:
         self._ensure_loaded()
         if not self._ready:
             return ""
 
+        query_texts = [query] if isinstance(query, str) else query
+
         try:
             results = self._collection.query(
-                query_texts=[query],
+                query_texts=query_texts,
                 n_results=n_results or self.max_results,
                 where={"project": project},
             )

@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ROOT_BASE } from "../../services/api";
 
 const POLL_INTERVAL = 15000;
 const INITIAL_DELAY = 6000;
+const FAIL_THRESHOLD = 2;
 
 async function checkHealth(): Promise<boolean> {
   try {
@@ -28,30 +29,29 @@ async function tryStartBackend(): Promise<boolean> {
 }
 
 export default function BackendStatusOverlay() {
-  const [alive, setAlive] = useState<boolean | null>(null);
   const [visible, setVisible] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [dismissed, setDismissed] = useState(
-    () => sessionStorage.getItem("devpilot_backend_dismissed") === "1"
+
+  const dismissed = useRef(
+    sessionStorage.getItem("devpilot_backend_dismissed") === "1"
   );
+  const failCount = useRef(0);
+  const wasEverAlive = useRef(false);
 
-  const dismiss = useCallback(() => {
-    setDismissed(true);
-    setVisible(false);
-    sessionStorage.setItem("devpilot_backend_dismissed", "1");
-  }, []);
-
-  const check = useCallback(async () => {
+  async function check() {
     const ok = await checkHealth();
-    setAlive(ok);
     if (ok) {
+      failCount.current = 0;
+      wasEverAlive.current = true;
       setVisible(false);
       setStarting(false);
-    } else if (!dismissed && alive !== null) {
-      // Solo mostrar si ya sabiamos que estaba vivo y cayo
-      setVisible(true);
+    } else {
+      failCount.current++;
+      if (wasEverAlive.current && failCount.current >= FAIL_THRESHOLD && !dismissed.current) {
+        setVisible(true);
+      }
     }
-  }, [dismissed, alive]);
+  }
 
   useEffect(() => {
     const initialTimer = setTimeout(() => {
@@ -60,7 +60,13 @@ export default function BackendStatusOverlay() {
       return () => clearInterval(interval);
     }, INITIAL_DELAY);
     return () => clearTimeout(initialTimer);
-  }, [check]);
+  }, []);
+
+  function dismiss() {
+    dismissed.current = true;
+    setVisible(false);
+    sessionStorage.setItem("devpilot_backend_dismissed", "1");
+  }
 
   async function handleStart() {
     setStarting(true);

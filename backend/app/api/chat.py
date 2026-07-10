@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,7 @@ from app.models.chat import (
     RenameSessionRequest,
     SessionEntry,
     SessionMessage,
+    SessionSearchResult,
     ToolChatRequest,
 )
 from app.services.llm_service import get_llm_service
@@ -123,6 +124,11 @@ def get_session_history(session_id: str, db: Session = Depends(get_db)):
     return memory_service.get_session_messages(session_id, db=db)
 
 
+@router.get("/chat/sessions/search", response_model=list[SessionSearchResult])
+def search_sessions(q: str = Query(..., min_length=1), project: str = Query(default="_casual"), db: Session = Depends(get_db)):
+    return memory_service.search_sessions(q, project, db=db)
+
+
 # --- Tool-calling chat ---
 
 _TOOL_SYSTEM_PROMPT = (
@@ -149,12 +155,16 @@ def _resolve_project_path(request: ToolChatRequest) -> str | None:
     return None
 
 
-def _build_rag_context(message: str, project_path: str | None) -> str:
-    """Query RAG for semantically relevant code snippets. Returns empty string if unavailable."""
+def _build_rag_context(message: str, project_path: str | None, session_id: str | None = None) -> str:
+    """Query RAG for semantically relevant code snippets using session context."""
     if not project_path:
         return ""
     try:
-        return rag_service.search(message, project_path) or ""
+        queries = [message]
+        if session_id:
+            recent = memory_service.get_recent_user_messages(session_id, 2)
+            queries = recent + queries
+        return rag_service.search(queries, project_path) or ""
     except Exception:
         return ""
 
@@ -178,8 +188,8 @@ def chat_tool_stream(request: ToolChatRequest):
     # Resolve project path — from request or from session metadata
     project_path = _resolve_project_path(request)
 
-    # Retrieve semantically relevant code chunks via RAG
-    rag_context = _build_rag_context(request.message, project_path)
+    # Retrieve semantically relevant code chunks via RAG (enriched with session history)
+    rag_context = _build_rag_context(request.message, project_path, request.session_id)
 
     # Build user prompt with conversation history
     user_prompt = _build_user_prompt(request.message, request.session_id, project_path)

@@ -93,6 +93,10 @@ export default function FileViewer() {
     selectedFile,
     fileContent,
     fileExplanation,
+    fileTabs,
+    activeFileTabId,
+    closeFileTab,
+    switchFileTab,
     explainSelectedFile,
     explaining,
     fileLoading,
@@ -192,7 +196,7 @@ export default function FileViewer() {
     return () => window.removeEventListener("keydown", handleGlobalKeydown);
   }, [handleGlobalKeydown]);
 
-  if (!selectedFile) {
+  if (fileTabs.length === 0) {
     return (
       <Card>
         <h2 className="mb-6 text-xl font-semibold">
@@ -225,15 +229,45 @@ export default function FileViewer() {
     }
   }
 
-  const ext = selectedFile.name.split(".").pop() ?? "";
+  const ext = (selectedFile?.name ?? "").split(".").pop() ?? "";
   const lang = extToLang[ext] ?? "typescript";
 
   return (
     <Card>
+      {/* File tabs */}
+      {fileTabs.length > 1 && (
+        <div className="-mx-6 -mt-6 mb-4 flex flex-wrap items-center gap-1 border-b border-slate-700/50 px-6 pb-2">
+          {fileTabs.map((ft) => {
+            const isActive = ft.id === activeFileTabId;
+            return (
+              <div
+                key={ft.id}
+                className={`group flex cursor-pointer items-center gap-2 rounded-t-lg px-3 py-2 text-sm transition select-none ${
+                  isActive
+                    ? "border border-b-0 border-slate-700 bg-slate-800/60 text-slate-200"
+                    : "text-slate-500 hover:bg-slate-800/30 hover:text-slate-300"
+                }`}
+                onClick={() => switchFileTab(ft.id)}
+              >
+                <span className="max-w-40 truncate">{ft.file.name}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); closeFileTab(ft.id); }}
+                  className="ml-1 rounded p-0.5 text-slate-600 opacity-0 transition hover:bg-red-600/20 hover:text-red-400 group-hover:opacity-100"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <h2 className="truncate text-xl font-semibold">
-            {selectedFile.name}
+            {selectedFile?.name ?? ""}
           </h2>
 
         </div>

@@ -10,8 +10,10 @@ import {
   createSession,
   deleteSession,
   getSessionHistory,
+  searchSessions,
   type RAGSource,
   type SessionEntry,
+  type SessionSearchResult,
   type ToolEvent,
 } from "../../services/projectService";
 import Button from "../../components/ui/Button";
@@ -102,6 +104,9 @@ export default function Chat() {
   const [sessions, setSessions] = useState<SessionEntry[]>([]);
   const [activeSession, setActiveSession] = useState<string | null>(null);
   const [sessionsOpen, setSessionsOpen] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SessionSearchResult[] | null>(null);
+  const [searching, setSearching] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -138,6 +143,26 @@ export default function Chat() {
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
     }
   }, [input]);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const results = await searchSessions(searchQuery, projectKey);
+        setSearchResults(results);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, projectKey]);
 
   async function switchSession(sessionId: string) {
     setActiveSession(sessionId);
@@ -302,37 +327,79 @@ export default function Chat() {
         </div>
 
         {sessionsOpen && (
+          <div className="relative mb-2">
+            <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("chat.search_sessions_placeholder")}
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 py-1.5 pl-8 pr-2 text-xs text-white outline-none placeholder:text-slate-500 focus:border-emerald-500"
+            />
+          </div>
+        )}
+
+        {sessionsOpen && (
           <div className="flex-1 space-y-1 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/50 p-2">
-            {sessions.length === 0 && (
+            {searching && (
+              <p className="px-2 py-8 text-center text-xs text-slate-500">{t("chat.search_sessions")}</p>
+            )}
+            {!searching && searchResults !== null && searchResults.length === 0 && (
+              <p className="px-2 py-8 text-center text-xs text-slate-500">{t("chat.no_results")}</p>
+            )}
+            {!searching && searchResults === null && sessions.length === 0 && (
               <p className="px-2 py-8 text-center text-xs text-slate-500">
                 {t("chat.no_sessions")}
               </p>
             )}
-            {sessions.map((s) => (
-              <div
-                key={s.id}
-                className={`group flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 text-xs transition ${
-                  activeSession === s.id
-                    ? "bg-emerald-600/20 text-emerald-300"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                }`}
-                onClick={() => switchSession(s.id)}
-              >
-                <span className="truncate">{s.name}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteSession(s.id);
-                  }}
-                  className="shrink-0 rounded p-0.5 text-slate-600 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
-                  title={t("chat.delete")}
-                >
-                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            ))}
+            {searchResults !== null
+              ? searchResults.map((r) => (
+                  <div
+                    key={r.session.id}
+                    className={`cursor-pointer rounded-lg px-2 py-1.5 text-xs transition ${
+                      activeSession === r.session.id
+                        ? "bg-emerald-600/20 text-emerald-300"
+                        : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                    }`}
+                    onClick={() => {
+                      switchSession(r.session.id);
+                      setSearchQuery("");
+                      setSearchResults(null);
+                    }}
+                  >
+                    <span className="block truncate font-medium">{r.session.name}</span>
+                    <span className="mt-0.5 block truncate text-[10px] text-slate-500">
+                      {r.matches[r.matches.length - 1].content}
+                    </span>
+                  </div>
+                ))
+              : sessions.map((s) => (
+                  <div
+                    key={s.id}
+                    className={`group flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 text-xs transition ${
+                      activeSession === s.id
+                        ? "bg-emerald-600/20 text-emerald-300"
+                        : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                    }`}
+                    onClick={() => switchSession(s.id)}
+                  >
+                    <span className="truncate">{s.name}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSession(s.id);
+                      }}
+                      className="shrink-0 rounded p-0.5 text-slate-600 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
+                      title={t("chat.delete")}
+                    >
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
           </div>
         )}
       </div>

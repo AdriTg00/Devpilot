@@ -389,6 +389,17 @@ export interface SessionMessage {
   content: string;
 }
 
+export interface SessionSearchMatch {
+  role: string;
+  content: string;
+  created_at: string;
+}
+
+export interface SessionSearchResult {
+  session: SessionEntry;
+  matches: SessionSearchMatch[];
+}
+
 export async function listSessions(project: string = "_casual"): Promise<SessionEntry[]> {
   const response = await api.get("/chat/sessions", { params: { project } });
   return response.data;
@@ -410,6 +421,11 @@ export async function renameSession(sessionId: string, name: string): Promise<Se
 
 export async function getSessionHistory(sessionId: string): Promise<SessionMessage[]> {
   const response = await api.get(`/chat/sessions/${sessionId}/history`);
+  return response.data;
+}
+
+export async function searchSessions(q: string, project: string = "_casual"): Promise<SessionSearchResult[]> {
+  const response = await api.get("/chat/sessions/search", { params: { q, project } });
   return response.data;
 }
 

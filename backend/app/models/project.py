@@ -24,6 +24,7 @@ class ProjectQuestionRequest(BaseModel):
 class ReadmeResponse(BaseModel):
     readme_path: str
     already_existed: bool
+    backup_path: str | None = None
 
 
 class FileRequest(BaseModel):

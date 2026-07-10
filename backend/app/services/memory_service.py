@@ -209,6 +209,47 @@ class MemoryService:
     def get_session_messages(self, session_id: str, db: Session | None = None) -> list[dict]:
         return self.get_history(self._session_key(session_id), db=db)
 
+    def get_recent_user_messages(self, session_id: str, n: int = 3) -> list[str]:
+        messages = self.get_session_messages(session_id)
+        user_msgs = [m["content"] for m in messages if m["role"] == "user"]
+        return user_msgs[-n:]
+
+    def search_sessions(self, query: str, project: str, db: Session | None = None) -> list[dict]:
+        with session_scope(db) as s:
+            sessions = self._load_sessions(s, project)
+            if not sessions:
+                return []
+
+            session_keys = [self._session_key(sess["id"]) for sess in sessions]
+            rows = (
+                s.query(Message)
+                .filter(Message.key.in_(session_keys))
+                .filter(Message.content.ilike(f"%{query}%"))
+                .order_by(Message.id)
+                .all()
+            )
+
+            key_matches: dict[str, list[dict]] = {}
+            for row in rows:
+                key_matches.setdefault(row.key, []).append({
+                    "role": row.role,
+                    "content": row.content[:200],
+                    "created_at": row.created_at.isoformat() if row.created_at else "",
+                })
+
+            results = []
+            for session in sessions:
+                key = self._session_key(session["id"])
+                matches = key_matches.get(key, [])
+                if matches:
+                    results.append({
+                        "session": session,
+                        "matches": matches[-5:],
+                    })
+
+            results.sort(key=lambda r: r["matches"][-1]["created_at"], reverse=True)
+            return results
+
     def add_session_message(self, session_id: str, role: str, content: str, db: Session | None = None):
         self.add(self._session_key(session_id), role, content, db=db)
         with session_scope(db) as s:

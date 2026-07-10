@@ -9,15 +9,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from prometheus_client import REGISTRY, Counter, Histogram, generate_latest
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 
 # app.core.config debe importarse antes que cualquier otro modulo de la app
 # para garantizar que load_dotenv() se ejecuta y las variables de entorno
 # estan disponibles cuando LLMService y otros modulos las leen.
 from app.core.config import BASE_URL, CORS_ORIGINS
+from app.core.rate_limiter import RateLimitMiddleware
 
 # ── Logging estructurado (JSON) ──────────────────────────────────────────
 
@@ -45,10 +43,6 @@ _logger = logging.getLogger("devpilot")
 REQUEST_COUNT = Counter("http_requests_total", "Total HTTP requests", ["method", "path", "status"])
 REQUEST_LATENCY = Histogram("http_request_duration_seconds", "HTTP request duration")
 
-# ── Rate limiter ──────────────────────────────────────────────────────────
-
-limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
-
 # ── Lifespan (startup / shutdown) ──────────────────────────────────────────
 
 @asynccontextmanager
@@ -68,9 +62,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
 # ── CORS ──────────────────────────────────────────────────────────────────
 
 app.add_middleware(
@@ -80,6 +71,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(RateLimitMiddleware)
 
 # ── Request ID + Metrics middleware ────────────────────────────────────────
 

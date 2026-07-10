@@ -108,6 +108,7 @@ export default function Documentation() {
   const [readmeResult, setReadmeResult] = useState<{
     readme_path: string;
     already_existed: boolean;
+    backup_path?: string | null;
   } | null>(null);
 
   function handleGenerateDoc() {
@@ -129,6 +130,9 @@ export default function Documentation() {
 
   async function handleGenerateReadme() {
     if (!currentPath) return;
+
+    if (!window.confirm(t("docs.readme_confirm_overwrite"))) return;
+
     setReadmeLoading(true);
     setReadmeResult(null);
     try {
@@ -243,6 +247,11 @@ export default function Documentation() {
                   <p className="mt-1 text-sm text-slate-400">
                     {readmeResult.already_existed ? t("docs.readme_overwritten") : t("docs.readme_created")}
                   </p>
+                  {readmeResult.backup_path && (
+                    <p className="mt-1 text-sm text-slate-500">
+                      {t("docs.readme_backup")} <code className="text-amber-400">{readmeResult.backup_path}</code>
+                    </p>
+                  )}
                 </Card>
               </motion.div>
             )}

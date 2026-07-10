@@ -34,8 +34,9 @@ DevPilot es un asistente de desarrollo con IA local. Permite analizar proyectos,
 - Code review automatizado (bugs, seguridad, performance, mantenibilidad)
 - Generación de documentación y README
 - Compartición de proyectos por enlace público con expiración
-- Chat multi-sesión por proyecto
+- Chat multi-sesión por proyecto con búsqueda en historial
 - Dashboard de salud (Ollama/Groq, ChromaDB, almacenamiento)
+- README versionado con backup automático al sobrescribir
 - Métricas Prometheus en `/metrics`
 
 ---
@@ -274,6 +275,30 @@ docker compose build
 proxy_pass http://backend:8000;
 ```
 
+### El test de conexión de un proveedor cloud muestra "Connected" aunque la API key sea inválida
+
+**Causa (antigua):** El botón de test cambiaba su texto a "Connected" (verde) después de un test exitoso, pero el estado era local y no se limpiaba al editar la key. Además, para Google, `genai.list_models()` no validaba realmente la key porque devolvía un iterador lazy.
+
+**Solución actual:** El botón siempre dice "Test". El resultado (éxito/fallo) se muestra como mensaje debajo del input. Al editar la key, se limpia el resultado anterior. Google fuerza la validación con `list(genai.list_models(page_size=1))`.
+
+### Cambiar de proveedor de IA no se refleja en el Health Dashboard
+
+**Causa (antigua):** Seleccionar un proveedor (Google, OpenAI, etc.) solo cambiaba el estado local de React. No se persistía al backend hasta que el usuario hiciera clic en "Save Settings". El Health Dashboard lee el proveedor activo directamente de la BD del backend.
+
+**Solución actual:** Al hacer clic en un proveedor, se guarda automáticamente al backend. También al hacer "Test" exitoso, se auto-selecciona y auto-guarda.
+
+### El chat pierde contexto entre sesiones — RAG no está vinculado a la sesión activa
+
+**Causa (antigua):** `_build_rag_context()` solo usaba el mensaje actual para consultar ChromaDB, ignorando el historial de la sesión. Cada consulta era independiente del contexto conversacional.
+
+**Solución actual:** `_build_rag_context()` ahora recibe el `session_id`, obtiene los últimos 2 mensajes del usuario y los pasa como queries adicionales a ChromaDB junto con el mensaje actual. ChromaDB combina y deduplica resultados automáticamente.
+
+### No se pueden encontrar conversaciones anteriores entre muchas sesiones de chat
+
+**Causa (antigua):** No existía búsqueda en el historial de mensajes. Con muchas sesiones era imposible encontrar una conversación específica.
+
+**Solución actual:** Hay una barra de búsqueda en el sidebar del chat. Busca con `ILIKE` en todos los mensajes de todas las sesiones del proyecto. Los resultados muestran el nombre de la sesión + preview del último mensaje coincidente, ordenados por relevancia temporal.
+
 ### Error 413 (entity too large) al subir archivos
 
 **Causa:** nginx por defecto limita el body a 1 MB.
@@ -324,7 +349,13 @@ ollama pull qwen2.5-coder:7b
 
 **Causa:** API key incorrecta, caducada, o cuota excedida.
 
-**Comportamiento:** El sistema fallback automáticamente a Ollama. Puedes cambiarlo en Settings > Proveedor de IA.
+**Comportamiento:** El sistema fallback automáticamente a Ollama. Puedes probar la conexión desde Settings > Proveedor de IA (botón "Test").
+
+### El README.md se sobrescribe sin previo aviso
+
+**Causa (antigua):** Al generar un README, si el archivo ya existía se sobrescribía silenciosamente sin forma de recuperar la versión anterior.
+
+**Solución actual:** Antes de generar, aparece un diálogo de confirmación. Si se confirma, el contenido anterior se respalda como `README.backup.{timestamp}.md` en el mismo directorio. La ruta del backup se muestra en la notificación de éxito.
 
 ### Rate limit excedido (429)
 

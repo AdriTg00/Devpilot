@@ -75,7 +75,7 @@ def test_provider(req: TestProviderRequest):
         elif req.provider == "google":
             import google.generativeai as genai
             genai.configure(api_key=req.api_key)
-            genai.list_models()
+            list(genai.list_models(page_size=1))
 
         elif req.provider == "groq":
             from groq import Groq

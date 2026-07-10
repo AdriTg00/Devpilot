@@ -1,6 +1,7 @@
 import logging
 
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.db.database import session_scope
 from app.db.models import Setting
@@ -23,6 +24,7 @@ class SettingsService:
             row = s.query(Setting).filter(Setting.key == _SETTINGS_KEY).first()
             if row:
                 row.value = data
+                flag_modified(row, "value")
             else:
                 s.add(Setting(key=_SETTINGS_KEY, value=data))
 
@@ -31,9 +33,9 @@ class SettingsService:
 
     def update(self, updates: dict, db: Session | None = None) -> Settings:
         current = self._load(db=db)
-        current.update(updates)
-        self._save(current, db=db)
-        settings = Settings(**current)
+        merged = {**current, **updates}
+        self._save(merged, db=db)
+        settings = Settings(**merged)
         rag_service.configure(
             chunk_lines=settings.rag_chunk_lines,
             overlap_lines=settings.rag_overlap_lines,

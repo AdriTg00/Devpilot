@@ -94,13 +94,19 @@ export default function Settings() {
     setTesting(providerId);
     try {
       const result = await testProviderConnection(providerId, apiKey);
-      setTestResults((prev) => ({ ...prev, [providerId]: result }));
       if (!result.success) {
+        setTestResults((prev) => ({ ...prev, [providerId]: result }));
         toast(result.message, "error");
-        update("provider", "auto");
-        toast(t("settings.switched_to_auto"), "info");
       } else {
         toast(result.message, "success");
+        const updated = { ...settings, provider: providerId };
+        setSettings(updated);
+        setTestResults((prev) => ({ ...prev, [providerId]: result }));
+        const saveResult = await updateSettings(updated);
+        setSettings(saveResult.settings);
+        for (const w of saveResult.warnings) {
+          toast(w, "info");
+        }
       }
     } catch {
       const fail = { success: false, message: t("settings.test_connection_failed") };
@@ -140,7 +146,18 @@ export default function Settings() {
               return (
                 <button
                   key={p.id}
-                  onClick={() => update("provider", p.id)}
+                  onClick={async () => {
+                    if (!settings || provider === p.id) return;
+                    update("provider", p.id);
+                    try {
+                      const updated = { ...settings, provider: p.id };
+                      const result = await updateSettings(updated);
+                      setSettings(result.settings);
+                      toast(t("settings.saved"), "success");
+                    } catch {
+                      toast(t("settings.save_error"), "error");
+                    }
+                  }}
                   className={`rounded-xl border p-3 text-left transition-all ${
                     active
                       ? "border-emerald-500 bg-emerald-600/10 ring-1 ring-emerald-500/30"
@@ -186,7 +203,10 @@ export default function Settings() {
                 <input
                   type="password"
                   value={(settings?.[`${p.id}_api_key` as keyof Settings] as string) ?? ""}
-                  onChange={(e) => update(`${p.id}_api_key` as keyof Settings, e.target.value)}
+                  onChange={(e) => {
+                    update(`${p.id}_api_key` as keyof Settings, e.target.value);
+                    setTestResults((prev) => ({ ...prev, [p.id]: null }));
+                  }}
                   placeholder={t("settings.api_key_placeholder", { provider: t(`provider.${p.id}.label`) })}
                   className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
                 />
@@ -205,20 +225,15 @@ export default function Settings() {
                 >
                   {testing === p.id ? (
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-emerald-400" />
-                  ) : testResults[p.id]?.success ? (
-                    t("settings.connected")
-                  ) : testResults[p.id]?.success === false ? (
-                    t("settings.failed")
                   ) : (
                     t("settings.test")
                   )}
                 </button>
               </div>
-              {testResults[p.id]?.success === false && (
-                <p className="mt-1 text-xs text-red-400">{testResults[p.id]?.message}</p>
-              )}
-              {testResults[p.id]?.success && (
-                <p className="mt-1 text-xs text-emerald-400">{testResults[p.id]?.message}</p>
+              {testResults[p.id] && (
+                <p className={`mt-1 text-xs ${testResults[p.id]?.success ? "text-emerald-400" : "text-red-400"}`}>
+                  {testResults[p.id]?.message}
+                </p>
               )}
             </div>
           ))}

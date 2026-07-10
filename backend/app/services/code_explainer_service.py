@@ -1,15 +1,17 @@
+import json
 import logging
 import re
 from pathlib import Path
 
 from app.core.prompts import (
+    _CODE_REVIEW_CAT_LINES,
+    _CODE_REVIEW_STRUCTURE,
+    CODE_REVIEW_JSON_PROMPT,
     CODE_REVIEW_PROMPT,
     EXPLAIN_FILE_PROMPT,
     EXPLAIN_PROJECT_PROMPT,
     README_PROMPT,
     language_instruction,
-    _CODE_REVIEW_CAT_LINES,
-    _CODE_REVIEW_STRUCTURE,
 )
 from app.services.llm_service import get_llm_service
 from app.tools.directory_reader import list_files
@@ -197,6 +199,64 @@ class CodeExplainerService:
         )
         yield "\n"
         yield from self.llm.ask_stream(prompt)
+
+    def _parse_markdown_fallback(self, text: str) -> dict:
+        categories = []
+        blocks = re.split(r"(?=^## )", text, flags=re.MULTILINE)
+        for block in blocks:
+            title_match = re.match(r"^## (.+)", block, flags=re.MULTILINE)
+            if not title_match:
+                continue
+            title = title_match.group(1).strip()
+            body = re.sub(r"^## .+\n*", "", block, flags=re.MULTILINE).strip()
+            if not body or re.search(r"ninguno detectado|none detected", body, re.IGNORECASE):
+                categories.append({"name": title, "findings": []})
+                continue
+            findings = []
+            items = re.split(r"(?=^### \[)", body, flags=re.MULTILINE)
+            for item in items:
+                if not item.strip():
+                    continue
+                tag_match = re.match(r"^### \[(.+?)\]\s*(.*)", item, flags=re.MULTILINE)
+                tag = tag_match.group(1) if tag_match else ""
+                desc = tag_match.group(2).strip() if tag_match and tag_match.group(2) else ""
+                file_m = re.search(r"-?\s*\*?\*?File\*?\*?:\s*`?(.+?)`?\s*$", item, re.IGNORECASE | re.MULTILINE)
+                line_m = re.search(r"-?\s*\*?\*?Line\*?\*?:\s*~?(\d+)?\s*$", item, re.IGNORECASE | re.MULTILINE)
+                issue_m = re.search(r"-?\s*\*?\*?Issue\*?\*?:\s*(.+?)(?=-?\s*\*?\*?Fix\*?\*?:|$)", item, re.IGNORECASE | re.DOTALL)
+                fix_m = re.search(r"-?\s*\*?\*?Fix\*?\*?:\s*(.+)", item, re.IGNORECASE | re.DOTALL)
+                findings.append({
+                    "tag": tag,
+                    "desc": desc,
+                    "file": file_m.group(1).strip() if file_m else "",
+                    "line": line_m.group(1).strip() if line_m else "",
+                    "issue": issue_m.group(1).strip() if issue_m else "",
+                    "fix": fix_m.group(1).strip() if fix_m else "",
+                })
+            categories.append({"name": title, "findings": findings})
+        return {"categories": categories}
+
+    def code_review_json(self, project_path: str, language: str = "en") -> dict:
+        _, context = self._build_context(project_path, max_chars=2000, max_total=12000)
+        prompt = CODE_REVIEW_JSON_PROMPT.format(
+            language_instruction=language_instruction(language),
+            category_lines=_CODE_REVIEW_CAT_LINES,
+            context=context,
+        )
+        raw = self.llm.ask(prompt)
+
+        # Try JSON first
+        json_match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if json_match:
+            try:
+                data = json.loads(json_match.group())
+                if isinstance(data, dict) and "categories" in data:
+                    return data
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # Fallback: parse as markdown
+        logger.warning("LLM did not return valid JSON for code review; falling back to markdown parsing")
+        return self._parse_markdown_fallback(raw)
 
     def _build_explain_project_prompt(self, path: str, language: str) -> str:
         _, project_content = self._build_context(path, max_chars=3000, max_total=15000)

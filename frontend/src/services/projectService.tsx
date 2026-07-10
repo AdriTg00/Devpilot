@@ -280,6 +280,11 @@ export async function aiFixCode(path: string, issue: string, fixSuggestion: stri
   return response.data;
 }
 
+export async function readFileContent(path: string): Promise<string> {
+  const { data } = await api.post("/project/read-file", { path });
+  return data.content ?? "";
+}
+
 export function streamAiFix(
   path: string,
   issue: string,
@@ -608,6 +613,29 @@ export interface HealthResponse {
 export interface CodeReviewCategory {
   name: string;
   color: string;
+}
+
+export interface CodeReviewFinding {
+  tag: string;
+  desc: string;
+  file: string;
+  line: string;
+  issue: string;
+  fix: string;
+}
+
+export interface CodeReviewCat {
+  name: string;
+  findings: CodeReviewFinding[];
+}
+
+export interface CodeReviewJsonData {
+  categories: CodeReviewCat[];
+}
+
+export async function getCodeReviewJson(path: string, language: string): Promise<CodeReviewJsonData> {
+  const { data } = await api.post("/project/code-review/json", { path, language });
+  return data;
 }
 
 export async function fetchCodeReviewCategories(): Promise<CodeReviewCategory[]> {

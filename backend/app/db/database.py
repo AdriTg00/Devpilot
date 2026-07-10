@@ -1,5 +1,6 @@
 """SQLite database configuration."""
 import os
+from contextlib import contextmanager
 from pathlib import Path
 
 from sqlalchemy import create_engine
@@ -16,11 +17,34 @@ SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
 def get_db() -> Session:
+    """FastAPI dependency injector — yields a session, closes on teardown."""
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+
+@contextmanager
+def session_scope(db: Session | None = None):
+    """Use provided session or create one. Only commits/closes own sessions.
+
+    - When `db` is provided (from DI): yield it without committing or closing.
+    - When `db` is None: create, commit, rollback on error, and close.
+    """
+    owns = db is None
+    s = db or SessionLocal()
+    try:
+        yield s
+        if owns:
+            s.commit()
+    except Exception:
+        if owns:
+            s.rollback()
+        raise
+    finally:
+        if owns:
+            s.close()
 
 
 def init_db():

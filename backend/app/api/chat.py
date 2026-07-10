@@ -1,6 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
+from sqlalchemy.orm import Session
 
+from app.db.database import get_db
 from app.models.chat import (
     ChatRequest,
     ChatResponse,
@@ -85,40 +87,40 @@ def chat_stream(request: ChatRequest):
 
 
 @router.post("/chat-clear")
-def clear_chat_memory():
-    memory_service.clear(_CASUAL_KEY)
+def clear_chat_memory(db: Session = Depends(get_db)):
+    memory_service.clear(_CASUAL_KEY, db=db)
     return {"message": "Chat memory cleared"}
 
 
 # --- Session endpoints ---
 
 @router.get("/chat/sessions", response_model=list[SessionEntry])
-def list_sessions(project: str = _CASUAL_KEY):
-    return memory_service.list_sessions(project)
+def list_sessions(project: str = _CASUAL_KEY, db: Session = Depends(get_db)):
+    return memory_service.list_sessions(project, db=db)
 
 
 @router.post("/chat/sessions", response_model=SessionEntry)
-def create_session(request: CreateSessionRequest):
-    return memory_service.create_session(request.project, request.name)
+def create_session(request: CreateSessionRequest, db: Session = Depends(get_db)):
+    return memory_service.create_session(request.project, request.name, db=db)
 
 
 @router.delete("/chat/sessions/{session_id}")
-def delete_session(session_id: str):
-    memory_service.delete_session(session_id)
+def delete_session(session_id: str, db: Session = Depends(get_db)):
+    memory_service.delete_session(session_id, db=db)
     return {"deleted": True}
 
 
 @router.put("/chat/sessions/{session_id}", response_model=SessionEntry)
-def rename_session(session_id: str, request: RenameSessionRequest):
-    result = memory_service.rename_session(session_id, request.name)
+def rename_session(session_id: str, request: RenameSessionRequest, db: Session = Depends(get_db)):
+    result = memory_service.rename_session(session_id, request.name, db=db)
     if result:
         return result
     return JSONResponse(status_code=404, content={"error": "Session not found"})
 
 
 @router.get("/chat/sessions/{session_id}/history", response_model=list[SessionMessage])
-def get_session_history(session_id: str):
-    return memory_service.get_session_messages(session_id)
+def get_session_history(session_id: str, db: Session = Depends(get_db)):
+    return memory_service.get_session_messages(session_id, db=db)
 
 
 # --- Tool-calling chat ---

@@ -15,8 +15,8 @@ def ms(monkeypatch, tmp_path):
     Base.metadata.create_all(bind=engine)
     TestSession = sessionmaker(bind=engine)
 
-    import app.services.memory_service as mod
-    monkeypatch.setattr(mod, "SessionLocal", TestSession)
+    import app.db.database as db_mod
+    monkeypatch.setattr(db_mod, "SessionLocal", TestSession)
 
     return MemoryService()
 

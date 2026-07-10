@@ -106,3 +106,21 @@ class CodeReviewCategoryItem(BaseModel):
 
 class CodeReviewCategoriesResponse(BaseModel):
     categories: list[CodeReviewCategoryItem]
+
+
+class CodeReviewFinding(BaseModel):
+    tag: str = ""
+    desc: str = ""
+    file: str = ""
+    line: str = ""
+    issue: str = ""
+    fix: str = ""
+
+
+class CodeReviewCat(BaseModel):
+    name: str
+    findings: list[CodeReviewFinding]
+
+
+class CodeReviewJsonResponse(BaseModel):
+    categories: list[CodeReviewCat]

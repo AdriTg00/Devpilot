@@ -230,3 +230,44 @@ Archivos del proyecto:
 {context}
 """
 
+CODE_REVIEW_JSON_PROMPT = """
+{language_instruction}
+Eres un Staff Software Engineer realizando una auditoría de código exhaustiva.
+
+Analiza los archivos del proyecto y busca:
+
+{category_lines}
+
+Reglas obligatorias:
+- SOLO menciona problemas reales basados en el código proporcionado.
+- NO inventes issues.
+- Por cada issue indica: categoría, archivo, línea aproximada, descripción y sugerencia de fix.
+- Si el proyecto está bien escrito y no hay issues graves, responde con "categories": [].
+
+RESPONDE ÚNICAMENTE CON JSON. SIN MARKDOWN. SIN EXPLICACIONES.
+
+{{
+  "categories": [
+    {{
+      "name": "Potential Bugs",
+      "findings": [
+        {{
+          "tag": "Bug",
+          "desc": "Descripción corta del problema",
+          "file": "ruta/archivo.py",
+          "line": "~42",
+          "issue": "Explicación detallada",
+          "fix": "Sugerencia de solución"
+        }}
+      ]
+    }}
+  ]
+}}
+
+Si una categoría no tiene issues, inclúyela con "findings": [].
+Si no hay ningún issue, responde: {{"categories": []}}
+
+Archivos del proyecto:
+{context}
+"""
+

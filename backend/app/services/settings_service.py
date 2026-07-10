@@ -1,6 +1,8 @@
 import logging
 
-from app.db.database import SessionLocal
+from sqlalchemy.orm import Session
+
+from app.db.database import session_scope
 from app.db.models import Setting
 from app.models.settings import Settings
 from app.services.rag_service import rag_service
@@ -11,33 +13,26 @@ _SETTINGS_KEY = "app_settings"
 
 
 class SettingsService:
-    def _load(self) -> dict:
-        db = SessionLocal()
-        try:
-            row = db.query(Setting).filter(Setting.key == _SETTINGS_KEY).first()
+    def _load(self, db: Session | None = None) -> dict:
+        with session_scope(db) as s:
+            row = s.query(Setting).filter(Setting.key == _SETTINGS_KEY).first()
             return row.value if row else {}
-        finally:
-            db.close()
 
-    def _save(self, data: dict):
-        db = SessionLocal()
-        try:
-            row = db.query(Setting).filter(Setting.key == _SETTINGS_KEY).first()
+    def _save(self, data: dict, db: Session | None = None):
+        with session_scope(db) as s:
+            row = s.query(Setting).filter(Setting.key == _SETTINGS_KEY).first()
             if row:
                 row.value = data
             else:
-                db.add(Setting(key=_SETTINGS_KEY, value=data))
-            db.commit()
-        finally:
-            db.close()
+                s.add(Setting(key=_SETTINGS_KEY, value=data))
 
-    def get(self) -> Settings:
-        return Settings(**self._load())
+    def get(self, db: Session | None = None) -> Settings:
+        return Settings(**self._load(db=db))
 
-    def update(self, updates: dict) -> Settings:
-        current = self._load()
+    def update(self, updates: dict, db: Session | None = None) -> Settings:
+        current = self._load(db=db)
         current.update(updates)
-        self._save(current)
+        self._save(current, db=db)
         settings = Settings(**current)
         rag_service.configure(
             chunk_lines=settings.rag_chunk_lines,

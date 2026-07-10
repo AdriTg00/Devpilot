@@ -9,6 +9,7 @@ from zipfile import ZipFile
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
+from app.core.prompts import CODE_REVIEW_CATEGORIES
 from app.core.validators import (
     MAX_UPLOAD_FILE_CHARS,
     MAX_UPLOAD_FILES,
@@ -24,6 +25,7 @@ from app.models.project import (
     CloseRequest,
     CodeReviewCategoriesResponse,
     CodeReviewCategoryItem,
+    CodeReviewJsonResponse,
     FileContentResponse,
     FileRequest,
     ProjectQuestionRequest,
@@ -37,7 +39,6 @@ from app.models.project import (
     SearchResponse,
     UploadRequest,
 )
-from app.core.prompts import CODE_REVIEW_CATEGORIES
 from app.services.code_explainer_service import CodeExplainerService
 from app.services.llm_service import get_llm_service
 from app.services.memory_service import memory_service
@@ -241,6 +242,12 @@ def code_review(request: ProjectRequest):
         media_type="text/plain",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.post("/code-review/json", response_model=CodeReviewJsonResponse)
+def code_review_json(request: ProjectRequest):
+    validate_directory(request.path)
+    return explainer.code_review_json(request.path, request.language)
 
 
 @router.post("/documentation")

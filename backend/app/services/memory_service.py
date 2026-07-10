@@ -4,9 +4,10 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.db.database import SessionLocal
+from app.db.database import session_scope
 from app.db.models import Message, Setting
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ SESSION_INDEX_SETTING_KEY = "session_index"
 class MemoryService:
     # --- JSON → SQLite migration (one-time) ---
 
-    def _maybe_migrate_from_json(self, db):
+    def _maybe_migrate_from_json(self, db: Session):
         try:
             from app.core.config import MEMORY_STORAGE_PATH
         except ImportError:
@@ -36,7 +37,7 @@ class MemoryService:
             return
         existing = db.query(func.count(Message.id)).scalar()
         if existing > 0:
-            return  # ya migrado
+            return
 
         for key, msgs in data.items():
             if not isinstance(msgs, list):
@@ -53,40 +54,32 @@ class MemoryService:
 
     # --- Core operations ---
 
-    def add(self, key: str, role: str, content: str):
-        db = SessionLocal()
-        try:
-            db.add(Message(key=key, role=role, content=content))
-            # trim old messages per key
+    def add(self, key: str, role: str, content: str, db: Session | None = None):
+        with session_scope(db) as s:
+            s.add(Message(key=key, role=role, content=content))
             keep_ids = [
                 r[0] for r in
-                db.query(Message.id)
+                s.query(Message.id)
                 .filter(Message.key == key)
                 .order_by(Message.id.desc())
                 .limit(MAX_HISTORY_PER_KEY)
                 .all()
             ]
             if keep_ids:
-                db.query(Message).filter(
+                s.query(Message).filter(
                     Message.key == key,
                     Message.id.notin_(keep_ids),
                 ).delete()
-            db.commit()
-        finally:
-            db.close()
 
-    def get_history(self, key: str) -> list[dict]:
-        db = SessionLocal()
-        try:
+    def get_history(self, key: str, db: Session | None = None) -> list[dict]:
+        with session_scope(db) as s:
             rows = (
-                db.query(Message)
+                s.query(Message)
                 .filter(Message.key == key)
                 .order_by(Message.id)
                 .all()
             )
             return [{"role": r.role, "content": r.content} for r in rows]
-        finally:
-            db.close()
 
     def build_context(self, key: str) -> str:
         history = self.get_history(key)
@@ -102,26 +95,22 @@ class MemoryService:
             lines.append(text)
         return "\n".join(lines)
 
-    def clear(self, key: str):
-        db = SessionLocal()
-        try:
-            db.query(Message).filter(Message.key == key).delete()
-            db.commit()
-        finally:
-            db.close()
+    def clear(self, key: str, db: Session | None = None):
+        with session_scope(db) as s:
+            s.query(Message).filter(Message.key == key).delete()
 
     # --- Session management ---
 
     def _session_key(self, session_id: str) -> str:
         return f"_session:{session_id}"
 
-    def _load_sessions(self, db, project: str) -> list[dict]:
+    def _load_sessions(self, db: Session, project: str) -> list[dict]:
         row = db.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
         if not row or not isinstance(row.value, dict):
             return []
         return row.value.get(project, [])
 
-    def _save_sessions(self, db, project: str, sessions: list[dict]):
+    def _save_sessions(self, db: Session, project: str, sessions: list[dict]):
         row = db.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
         data = row.value if (row and isinstance(row.value, dict)) else {}
         if sessions:
@@ -135,15 +124,14 @@ class MemoryService:
             db.add(Setting(key=SESSION_INDEX_SETTING_KEY, value=data))
         db.commit()
 
-    def _migrate_project_sessions(self, project: str):
-        db = SessionLocal()
-        try:
-            sessions = self._load_sessions(db, project)
+    def _migrate_project_sessions(self, project: str, db: Session | None = None):
+        with session_scope(db) as s:
+            sessions = self._load_sessions(s, project)
             safe_name = project.replace("/", "_").replace("\\", "_")
             default_sid = f"default-{safe_name}"
-            existing_ids = {s["id"] for s in sessions}
+            existing_ids = {sess["id"] for sess in sessions}
             msgs = (
-                db.query(Message)
+                s.query(Message)
                 .filter(Message.key == project)
                 .order_by(Message.id)
                 .all()
@@ -155,22 +143,16 @@ class MemoryService:
                     "created_at": datetime.now(timezone.utc).isoformat(),
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                 })
-                self._save_sessions(db, project, sessions)
-        finally:
-            db.close()
+                self._save_sessions(s, project, sessions)
 
-    def list_sessions(self, project: str) -> list[dict]:
-        self._migrate_project_sessions(project)
-        db = SessionLocal()
-        try:
-            return self._load_sessions(db, project)
-        finally:
-            db.close()
+    def list_sessions(self, project: str, db: Session | None = None) -> list[dict]:
+        with session_scope(db) as s:
+            self._migrate_project_sessions(project, db=s)
+            return self._load_sessions(s, project)
 
-    def create_session(self, project: str, name: str = "") -> dict:
-        db = SessionLocal()
-        try:
-            sessions = self._load_sessions(db, project)
+    def create_session(self, project: str, name: str = "", db: Session | None = None) -> dict:
+        with session_scope(db) as s:
+            sessions = self._load_sessions(s, project)
             session_id = uuid.uuid4().hex[:8]
             now = datetime.now(timezone.utc).isoformat()
             entry = {
@@ -181,83 +163,63 @@ class MemoryService:
                 "project": project,
             }
             sessions.append(entry)
-            self._save_sessions(db, project, sessions)
+            self._save_sessions(s, project, sessions)
             return entry
-        finally:
-            db.close()
 
-    def get_session_project(self, session_id: str) -> str | None:
-        """Return the project path associated with a session, or None if not found."""
-        db = SessionLocal()
-        try:
-            row = db.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
+    def get_session_project(self, session_id: str, db: Session | None = None) -> str | None:
+        with session_scope(db) as s:
+            row = s.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
             if not row or not isinstance(row.value, dict):
                 return None
             for project, sessions in row.value.items():
-                for s in sessions:
-                    if s.get("id") == session_id:
-                        # prefer the stored project field, fall back to the index key
-                        return s.get("project") or (project if project != "_casual" else None)
+                for sess in sessions:
+                    if sess.get("id") == session_id:
+                        return sess.get("project") or (project if project != "_casual" else None)
             return None
-        finally:
-            db.close()
 
-    def rename_session(self, session_id: str, name: str):
-        db = SessionLocal()
-        try:
-            row = db.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
+    def rename_session(self, session_id: str, name: str, db: Session | None = None):
+        with session_scope(db) as s:
+            row = s.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
             if not row or not isinstance(row.value, dict):
                 return None
             data = dict(row.value)
             for proj_sessions in data.values():
-                for s in proj_sessions:
-                    if s["id"] == session_id:
-                        s["name"] = name
-                        s["updated_at"] = datetime.now(timezone.utc).isoformat()
+                for sess in proj_sessions:
+                    if sess["id"] == session_id:
+                        sess["name"] = name
+                        sess["updated_at"] = datetime.now(timezone.utc).isoformat()
                         row.value = data
                         flag_modified(row, "value")
-                        db.commit()
-                        return s
+                        return sess
             return None
-        finally:
-            db.close()
 
-    def delete_session(self, session_id: str):
-        db = SessionLocal()
-        try:
-            db.query(Message).filter(Message.key == self._session_key(session_id)).delete()
-            row = db.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
+    def delete_session(self, session_id: str, db: Session | None = None):
+        with session_scope(db) as s:
+            s.query(Message).filter(Message.key == self._session_key(session_id)).delete()
+            row = s.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
             if row and isinstance(row.value, dict):
-                data = dict(row.value)  # copy to trigger SQLAlchemy mutation tracking
+                data = dict(row.value)
                 for proj in list(data.keys()):
-                    data[proj] = [s for s in data[proj] if s["id"] != session_id]
+                    data[proj] = [sess for sess in data[proj] if sess["id"] != session_id]
                     if not data[proj]:
                         del data[proj]
                 row.value = data
                 flag_modified(row, "value")
-                db.commit()
-        finally:
-            db.close()
 
-    def get_session_messages(self, session_id: str) -> list[dict]:
-        return self.get_history(self._session_key(session_id))
+    def get_session_messages(self, session_id: str, db: Session | None = None) -> list[dict]:
+        return self.get_history(self._session_key(session_id), db=db)
 
-    def add_session_message(self, session_id: str, role: str, content: str):
-        self.add(self._session_key(session_id), role, content)
-        # Update timestamp
-        db = SessionLocal()
-        try:
-            row = db.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
+    def add_session_message(self, session_id: str, role: str, content: str, db: Session | None = None):
+        self.add(self._session_key(session_id), role, content, db=db)
+        with session_scope(db) as s:
+            row = s.query(Setting).filter(Setting.key == SESSION_INDEX_SETTING_KEY).first()
             if row and isinstance(row.value, dict):
                 for proj_sessions in row.value.values():
-                    for s in proj_sessions:
-                        if s["id"] == session_id:
-                            s["updated_at"] = datetime.now(timezone.utc).isoformat()
-                            row.value = row.value  # trigger update
-                            db.commit()
+                    for sess in proj_sessions:
+                        if sess["id"] == session_id:
+                            sess["updated_at"] = datetime.now(timezone.utc).isoformat()
+                            row.value = row.value
                             return
-        finally:
-            db.close()
 
 
 # Singleton — initialized in startup/lifespan
@@ -265,13 +227,17 @@ memory_service = MemoryService()
 
 # Migrate legacy JSON si existe
 def _init_memory():
+    from app.db.database import SessionLocal
+    db = None
     try:
         db = SessionLocal()
         memory_service._maybe_migrate_from_json(db)
+        db.commit()
     except Exception as e:
         logger.warning("Memory migration skipped: %s", e)
     finally:
-        db.close()
+        if db is not None:
+            db.close()
 
 
 _init_memory()

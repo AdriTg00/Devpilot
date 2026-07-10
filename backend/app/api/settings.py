@@ -1,8 +1,10 @@
 import os
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from app.db.database import get_db
 from app.models.settings import Settings
 from app.services.llm_service import _reinit_llm_service
 from app.services.settings_service import settings_service
@@ -26,15 +28,15 @@ def _get_provider_key(settings: Settings, provider: str) -> str | None:
 
 
 @router.get("")
-def get_settings():
-    s = settings_service.get()
+def get_settings(db: Session = Depends(get_db)):
+    s = settings_service.get(db=db)
     warnings = _check_warnings(s)
     return {"settings": s.model_dump(), "warnings": warnings}
 
 
 @router.put("")
-def update_settings(updates: Settings):
-    saved = settings_service.update(updates.model_dump())
+def update_settings(updates: Settings, db: Session = Depends(get_db)):
+    saved = settings_service.update(updates.model_dump(), db=db)
     _reinit_llm_service()
     warnings = _check_warnings(saved)
     return {"settings": saved.model_dump(), "warnings": warnings}

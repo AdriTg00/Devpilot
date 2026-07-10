@@ -3,11 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useToast } from "../../contexts/ToastContext";
-import { streamCodeReview, streamAiFix, fetchCodeReviewCategories } from "../../services/projectService";
-import type { CodeReviewCategory } from "../../services/projectService";
+import { streamAiFix, fetchCodeReviewCategories, readFileContent, getCodeReviewJson } from "../../services/projectService";
+import type { CodeReviewCategory, CodeReviewJsonData } from "../../services/projectService";
 import Card from "../ui/Card";
 import Button from "../ui/Button";
-import TypingEffect from "../ui/TypingEffect";
+import DiffViewer from "../ui/DiffViewer";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -57,35 +57,44 @@ export default function CodeReview() {
   }, []);
 
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState("");
+  const [reviewData, setReviewData] = useState<CodeReviewJsonData | null>(null);
+  const [reviewError, setReviewError] = useState(false);
   const [fixingKey, setFixingKey] = useState<string | null>(null);
   const [fixingStream, setFixingStream] = useState("");
   const [fixResultKey, setFixResultKey] = useState<string | null>(null);
   const [fixResultContent, setFixResultContent] = useState("");
+  const [fixOriginalContent, setFixOriginalContent] = useState("");
 
   if (!analysis || !currentPath) return null;
 
-  function handleReview() {
+  async function handleReview() {
     setLoading(true);
-    setResult("");
-    streamCodeReview(
-      currentPath,
-      language,
-      (text) => setResult(text),
-      () => setLoading(false),
-      () => {
-        setResult("Error running code review.");
-        setLoading(false);
-      },
-    );
+    setReviewData(null);
+    setReviewError(false);
+    try {
+      const data = await getCodeReviewJson(currentPath, language);
+      setReviewData(data);
+    } catch {
+      setReviewError(true);
+      toast("Error running code review", "error");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleAIFix(fileRel: string, issue: string, fix: string, key: string) {
     const fullPath = fileRel.includes(":") ? fileRel : `${currentPath.replace(/\\/g, "/").replace(/\/+$/, "")}/${fileRel.replace(/\\/g, "/")}`;
     setFixResultKey(null);
     setFixResultContent("");
+    setFixOriginalContent("");
     setFixingKey(key);
     setFixingStream("");
+
+    let original = "";
+    try {
+      original = await readFileContent(fullPath);
+    } catch { /* non-fatal — diff will show everything as added */ }
+    setFixOriginalContent(original);
 
     streamAiFix(
       fullPath, issue, fix,
@@ -114,40 +123,7 @@ export default function CodeReview() {
   function handleDismissFix() {
     setFixResultKey(null);
     setFixResultContent("");
-  }
-
-  interface Finding {
-    tag: string;
-    desc: string;
-    file: string;
-    line: string;
-    issue: string;
-    fix: string;
-  }
-
-  const categories = result
-    ? result.split(/(?=^## )/m).filter((s) => s.startsWith("## "))
-    : [];
-
-  function parseFindings(body: string): Finding[] {
-    const items = body.split(/(?=^### \[)/m).filter((s) => s.trim());
-    return items.map((item) => {
-      const headerMatch = item.match(/^### \[(.+?)\]\s*(.*)/m);
-      const tag = headerMatch?.[1] || "";
-      const desc = headerMatch?.[2]?.trim() || "";
-      const fileMatch = item.match(/-?\s*\*?\*?File\*?\*?:\s*`?(.+?)`?\s*$/im);
-      const lineMatch = item.match(/-?\s*\*?\*?Line\*?\*?:\s*~?(\d+)?\s*$/im);
-      const issueMatch = item.match(/-?\s*\*?\*?Issue\*?\*?:\s*(.+?)(?=-?\s*\*?\*?Fix\*?\*?:|$)/is);
-      const fixMatch = item.match(/-?\s*\*?\*?Fix\*?\*?:\s*(.+)/is);
-      return {
-        tag,
-        desc,
-        file: fileMatch?.[1]?.trim() || "",
-        line: lineMatch?.[1]?.trim() || "",
-        issue: issueMatch?.[1]?.trim() || "",
-        fix: fixMatch?.[1]?.trim() || "",
-      };
-    });
+    setFixOriginalContent("");
   }
 
   return (
@@ -157,7 +133,7 @@ export default function CodeReview() {
       </Button>
 
       <AnimatePresence mode="wait">
-        {(loading || result) && (
+        {(loading || reviewData || reviewError) && (
           <motion.div
             key="review"
             variants={fadeUp}
@@ -174,12 +150,12 @@ export default function CodeReview() {
                 <div>
                   <h3 className="font-semibold text-white">{t("code_review.title")}</h3>
                   <p className="text-xs text-slate-500">
-                    {loading ? t("code_review.analyzing") : t("code_review.categories_reviewed", { count: categories.length })}
+                    {loading ? t("code_review.analyzing") : reviewError ? t("code_review.error") : t("code_review.categories_reviewed", { count: reviewData!.categories.length })}
                   </p>
                 </div>
               </div>
 
-              {loading && !result && (
+              {loading && !reviewData && (
                 <div className="flex items-center gap-2 py-8 text-center text-sm text-slate-500">
                   <div className="flex-1">
                     <div className="mx-auto mb-3 h-1.5 w-48 animate-pulse rounded-full bg-slate-700" />
@@ -189,16 +165,23 @@ export default function CodeReview() {
                 </div>
               )}
 
-              {result && (
-                <div className="space-y-4">
-                  {categories.map((catRaw, i) => {
-                    const titleMatch = catRaw.match(/^## (.+)/m);
-                    const title = titleMatch?.[1]?.trim() || "";
-                    const body = catRaw.replace(/^## .+\n*/m, "").trim();
-                    if (!body || /ninguno detectado|none detected/i.test(body)) return null;
+              {reviewError && !reviewData && (
+                <div className="py-8 text-center text-sm text-red-400">
+                  {t("code_review.failed")}
+                </div>
+              )}
 
-                    const meta = categoryMeta[title] || DEFAULT_META;
-                    const findings = parseFindings(body);
+              {reviewData && (reviewData.categories.length === 0 || reviewData.categories.every((c) => c.findings.length === 0)) && (
+                <div className="py-8 text-center text-sm text-slate-400">
+                  {t("code_review.no_issues")}
+                </div>
+              )}
+
+              {reviewData && reviewData.categories.some((c) => c.findings.length > 0) && (
+                <div className="space-y-4">
+                  {reviewData.categories.map((cat, i) => {
+                    if (cat.findings.length === 0) return null;
+                    const meta = categoryMeta[cat.name] || DEFAULT_META;
 
                     return (
                       <div
@@ -207,19 +190,13 @@ export default function CodeReview() {
                       >
                         <div className="mb-3 flex items-center gap-2.5">
                           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${meta.dot}`} />
-                          <h4 className="text-sm font-semibold text-white">{title}</h4>
-                          <span className="ml-auto text-[10px] text-slate-500">{findings.length} {findings.length === 1 ? t("code_review.issue_single") : t("code_review.issues")}</span>
+                          <h4 className="text-sm font-semibold text-white">{cat.name}</h4>
+                          <span className="ml-auto text-[10px] text-slate-500">{cat.findings.length} {cat.findings.length === 1 ? t("code_review.issue_single") : t("code_review.issues")}</span>
                         </div>
 
-                        {loading && findings.length === 0 && (
-                          <div className="space-y-2 py-2">
-                            <div className="h-2 w-3/4 animate-pulse rounded-full bg-slate-700" />
-                            <div className="h-2 w-1/2 animate-pulse rounded-full bg-slate-700" />
-                          </div>
-                        )}
-
-                        <div className="space-y-3">
-                          {findings.map((f, j) => {
+                        {cat.findings.length > 0 && (
+                          <div className="space-y-3">
+                          {cat.findings.map((f, j) => {
                             const findingKey = `${i}-${j}`;
                             return (
                             <div key={findingKey} className="rounded-lg bg-slate-900/60 p-3">
@@ -284,7 +261,7 @@ export default function CodeReview() {
                                 </div>
                               )}
 
-                              {/* Fix result with Copy + Dismiss */}
+                              {/* Fix result with DiffView + Copy + Dismiss */}
                               {fixResultKey === findingKey && fixResultContent && (
                                 <div className="mt-3 rounded-lg border border-emerald-700/30 bg-slate-900/80 p-3">
                                   <div className="mb-2 flex items-center justify-between">
@@ -312,22 +289,20 @@ export default function CodeReview() {
                                       </button>
                                     </div>
                                   </div>
-                                  <pre className="max-h-40 overflow-auto rounded bg-slate-950 p-2 text-[10px] leading-relaxed text-emerald-300 whitespace-pre-wrap">
-                                    {fixResultContent}
-                                  </pre>
+                                  {fixOriginalContent ? (
+                                    <DiffViewer original={fixOriginalContent} modified={fixResultContent} />
+                                  ) : (
+                                    <pre className="max-h-40 overflow-auto rounded bg-slate-950 p-2 text-[10px] leading-relaxed text-emerald-300 whitespace-pre-wrap">
+                                      {fixResultContent}
+                                    </pre>
+                                  )}
                                 </div>
                               )}
                             </div>
                           );
                           })}
                         </div>
-
-                        {/* fallback: si no se parsearon findings, mostrar como texto */}
-                        {findings.length === 0 && body && (
-                          <div className="prose prose-invert max-w-none text-xs text-slate-300 [&_code]:rounded [&_code]:bg-slate-700 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[11px] [&_pre]:rounded-lg [&_pre]:bg-slate-900 [&_pre]:p-3">
-                            <TypingEffect text={body} loading={loading} speed={5} />
-                          </div>
-                        )}
+                      )}
                       </div>
                     );
                   })}

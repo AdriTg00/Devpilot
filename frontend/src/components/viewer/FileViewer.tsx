@@ -102,7 +102,6 @@ export default function FileViewer() {
 
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
-  const [saving, setSaving] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [matchIndex, setMatchIndex] = useState(0);
@@ -191,7 +190,6 @@ export default function FileViewer() {
 
   async function handleSave() {
     if (!selectedFile) return;
-    setSaving(true);
     try {
       await saveFile(selectedFile.path, editContent);
       await selectFile(selectedFile);
@@ -203,8 +201,6 @@ export default function FileViewer() {
       }
     } catch {
       toast(t("viewer.save_error"), "error");
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -238,57 +234,26 @@ export default function FileViewer() {
           <h2 className="truncate text-xl font-semibold">
             {selectedFile.name}
           </h2>
-          {editing && (
-            <span className="shrink-0 rounded-md bg-emerald-600/20 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
-              {t("viewer.editing")}
-            </span>
-          )}
+
         </div>
         <div className="flex shrink-0 gap-2">
-          {editing ? (
-            <>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white transition hover:bg-emerald-700 disabled:opacity-50"
-              >
-                {saving && <Spinner size="sm" />}
-                {saving ? t("viewer.saving") : t("viewer.save")}
-              </button>
-              <button
-                onClick={cancelEditing}
-                className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:text-slate-200"
-              >
-                {t("viewer.cancel")}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => { setSearchActive(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400"
-              >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                {t("viewer.search")}
-              </button>
-              <button
-                onClick={startEditing}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400"
-              >
-                {t("viewer.edit")}
-              </button>
-              <button
-                onClick={explainSelectedFile}
-                disabled={explaining}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white transition hover:bg-emerald-700 disabled:opacity-50"
-              >
-                {explaining && <Spinner size="sm" />}
-                {explaining ? t("viewer.generating") : t("viewer.explain")}
-              </button>
-            </>
-          )}
+          <button
+            onClick={() => { setSearchActive(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            {t("viewer.search")}
+          </button>
+          <button
+            onClick={explainSelectedFile}
+            disabled={explaining}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white transition hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {explaining && <Spinner size="sm" />}
+            {explaining ? t("viewer.generating") : t("viewer.explain")}
+          </button>
         </div>
       </div>
 

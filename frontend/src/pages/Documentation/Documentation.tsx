@@ -99,7 +99,7 @@ function inlineMd(text: string): string {
 
 export default function Documentation() {
   const { currentPath } = useProject();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { toast } = useToast();
 
   const [docLoading, setDocLoading] = useState(false);
@@ -120,9 +120,9 @@ export default function Documentation() {
       (text) => setDocumentation(text),
       () => setDocLoading(false),
       () => {
-        setDocumentation("Error generating documentation.");
+        setDocumentation(t("docs.error_generating"));
         setDocLoading(false);
-        toast("Error al generar documentacion", "error");
+        toast(t("docs.error_generating"), "error");
       },
     );
   }
@@ -134,10 +134,10 @@ export default function Documentation() {
     try {
       const data = await generateReadme(currentPath, language);
       setReadmeResult(data);
-      toast("README generado correctamente", "success");
+      toast(t("docs.readme_success"), "success");
     } catch {
       setReadmeResult({ readme_path: "", already_existed: false });
-      toast("Error al generar README", "error");
+      toast(t("docs.readme_error"), "error");
     } finally {
       setReadmeLoading(false);
     }
@@ -145,18 +145,18 @@ export default function Documentation() {
 
   function handleExportPdf() {
     if (!documentation) {
-      toast("Generate documentation first", "error");
+      toast(t("docs.export_first"), "error");
       return;
     }
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      toast("Allow popups to export PDF", "error");
+      toast(t("docs.allow_popups"), "error");
       return;
     }
     printWindow.document.write(`
       <html>
       <head>
-        <title>Documentation</title>
+        <title>${t("docs.title")}</title>
         <style>
           body { font-family: system-ui, sans-serif; padding: 40px; line-height: 1.8; color: #111; max-width: 800px; margin: 0 auto; }
           pre { background: #f5f5f5; padding: 16px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; }
@@ -180,23 +180,47 @@ export default function Documentation() {
     setTimeout(() => printWindow.print(), 500);
   }
 
+  const shortcutKeys: [string, string][] = [
+    ["?", "docs.shortcuts.show"],
+    ["Esc", "docs.shortcuts.close"],
+    ["Ctrl+K", "docs.shortcuts.file_search"],
+    ["Ctrl+Shift+F", "docs.shortcuts.project_search"],
+    ["Ctrl+F", "docs.shortcuts.file_find"],
+    ["Ctrl+E", "docs.shortcuts.toggle_edit"],
+    ["Ctrl+S", "docs.shortcuts.save_file"],
+    ["Enter", "docs.shortcuts.send"],
+  ];
+
+  const apiEndpoints: [string, string][] = [
+    ["GET /health", "docs.api.health"],
+    ["GET /health/detailed", "docs.api.health_detailed"],
+    ["GET /metrics", "docs.api.metrics"],
+    ["GET/PUT /api/v1/settings", "docs.api.settings"],
+    ["POST /api/v1/project/analyze", "docs.api.analyze"],
+    ["POST /api/v1/project/question-stream", "docs.api.question_stream"],
+    ["POST /api/v1/chat/tool-stream", "docs.api.tool_stream"],
+    ["POST /api/v1/project/export", "docs.api.export"],
+    ["POST /api/v1/project/share", "docs.api.share"],
+    ["GET /shared/{token}", "docs.api.shared"],
+  ];
+
   return (
     <div className="space-y-6 pb-8">
-      <h1 className="text-2xl font-bold text-white">Documentation</h1>
+      <h1 className="text-2xl font-bold text-white">{t("docs.title")}</h1>
 
       {/* === Project Tools (top) === */}
       {currentPath && (
         <>
           <div className="flex flex-wrap gap-4">
             <Button onClick={handleGenerateDoc} loading={docLoading}>
-              {docLoading ? "Generating Documentation\u2026" : "Generate Documentation"}
+              {docLoading ? t("docs.generating_doc") : t("docs.generate_doc")}
             </Button>
             <Button onClick={handleGenerateReadme} loading={readmeLoading} variant="secondary">
-              {readmeLoading ? "Generating README\u2026" : "Generate README"}
+              {readmeLoading ? t("docs.generating_readme") : t("docs.generate_readme")}
             </Button>
             {documentation && (
               <Button onClick={handleExportPdf} variant="secondary">
-                Export PDF
+                {t("docs.export_pdf")}
               </Button>
             )}
           </div>
@@ -212,12 +236,12 @@ export default function Documentation() {
                 transition={{ duration: 0.3 }}
               >
                 <Card>
-                  <h2 className="mb-2 text-lg font-semibold text-emerald-400">README generated</h2>
+                  <h2 className="mb-2 text-lg font-semibold text-emerald-400">{t("docs.readme_title")}</h2>
                   <p className="text-sm text-slate-300">
-                    Path: <code className="text-emerald-400">{readmeResult.readme_path}</code>
+                    {t("docs.readme_path")} <code className="text-emerald-400">{readmeResult.readme_path}</code>
                   </p>
                   <p className="mt-1 text-sm text-slate-400">
-                    {readmeResult.already_existed ? "Overwritten existing file." : "Created new file."}
+                    {readmeResult.already_existed ? t("docs.readme_overwritten") : t("docs.readme_created")}
                   </p>
                 </Card>
               </motion.div>
@@ -232,7 +256,7 @@ export default function Documentation() {
                 transition={{ duration: 0.3 }}
               >
                 <Card>
-                  <h2 className="mb-4 text-lg font-semibold text-white">Documentation</h2>
+                  <h2 className="mb-4 text-lg font-semibold text-white">{t("docs.title")}</h2>
                   <div className="max-h-[60vh] overflow-y-auto">
                     <TypingEffect text={documentation} loading={docLoading} />
                   </div>
@@ -246,100 +270,63 @@ export default function Documentation() {
       )}
 
       {/* === DevPilot Docs === */}
-      <DocSection title="About DevPilot">
-        <p>
-          DevPilot is a local-first AI developer assistant. It analyzes your source code,
-          indexes it with vector search (RAG), and lets you chat with an LLM that
-          understands your project. All processing happens on your machine.
-        </p>
+      <DocSection title={t("docs.about.title")}>
+        <p>{t("docs.about.text")}</p>
       </DocSection>
 
-      <DocSection title="Quick Start">
+      <DocSection title={t("docs.quick_start.title")}>
         <ol className="list-decimal space-y-2 pl-5">
-          <li>Open a project folder from the <strong>Projects</strong> page (drag &amp; drop or browse).</li>
-          <li>Wait for analysis to complete. The RAG index builds automatically.</li>
-          <li>Go to <strong>Chat</strong> and ask questions about your code.</li>
-          <li>Use the <strong>File Explorer</strong> to view, edit, and search files.</li>
-          <li>Configure your LLM provider in <strong>Settings</strong> (Ollama or Groq).</li>
+          <li>{t("docs.quick_start.step1")}</li>
+          <li>{t("docs.quick_start.step2")}</li>
+          <li>{t("docs.quick_start.step3")}</li>
+          <li>{t("docs.quick_start.step4")}</li>
+          <li>{t("docs.quick_start.step5")}</li>
         </ol>
       </DocSection>
 
-      <DocSection title="Keyboard Shortcuts">
+      <DocSection title={t("docs.shortcuts.title")}>
         <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-          {[
-            ["?", "Show keyboard shortcuts"],
-            ["Esc", "Close modal / cancel"],
-            ["Ctrl+K", "File search (Explorer)"],
-            ["Ctrl+Shift+F", "Search in project code"],
-            ["Ctrl+F", "Search inside file (Viewer)"],
-            ["Ctrl+E", "Toggle edit mode (Viewer)"],
-            ["Ctrl+S", "Save file (Viewer)"],
-            ["Enter", "Send message (Chat)"],
-          ].map(([key, desc]) => (
+          {shortcutKeys.map(([key, descKey]) => (
             <div key={key} className="flex items-center gap-3 rounded-lg px-2 py-1 hover:bg-slate-800/50">
               <Kbd>{key}</Kbd>
-              <span className="text-sm text-slate-400">{desc}</span>
+              <span className="text-sm text-slate-400">{t(descKey)}</span>
             </div>
           ))}
         </div>
-        <p className="mt-2 text-xs text-slate-600">Press <Kbd>?</Kbd> anywhere to see all shortcuts.</p>
+        <p className="mt-2 text-xs text-slate-600">{t("docs.shortcuts.hint", { key: "?" })}</p>
       </DocSection>
 
-      <DocSection title="LLM Providers">
+      <DocSection title={t("docs.providers.title")}>
         <div className="space-y-3">
           <div>
-            <h3 className="font-medium text-slate-300">Ollama (default)</h3>
+            <h3 className="font-medium text-slate-300">{t("docs.providers.ollama_title")}</h3>
             <p className="text-xs text-slate-500">
-              Local models via Ollama. Install Ollama separately and pull a model
-              (e.g. <code className="text-emerald-400">ollama pull qwen2.5-coder:7b</code>).
+              {t("docs.providers.ollama_desc", { cmd: "ollama pull qwen2.5-coder:7b" })}
             </p>
           </div>
           <div>
-            <h3 className="font-medium text-slate-300">Groq (cloud)</h3>
+            <h3 className="font-medium text-slate-300">{t("docs.providers.groq_title")}</h3>
             <p className="text-xs text-slate-500">
-              Fast cloud inference via Groq API. Create a free key at{" "}
-              <a href="https://console.groq.com" className="text-emerald-400 underline" target="_blank" rel="noopener">
-                console.groq.com
-              </a>{" "}
-              and add it to your <code className="text-emerald-400">.env</code> file.
+              {t("docs.providers.groq_desc", { url: "console.groq.com" })}
             </p>
           </div>
         </div>
       </DocSection>
 
-      <DocSection title="RAG (Retrieval-Augmented Generation)">
-        <p>
-          DevPilot indexes your project code into ChromaDB, a local vector database.
-          When you ask a question in Chat, it retrieves the most relevant code snippets
-          and includes them as context for the LLM, showing source citations inline.
-        </p>
-        <p className="mt-2 text-xs text-slate-500">
-          The index rebuilds automatically when you open or upload a project.
-          Saving a file auto-reindexes just that file.
-        </p>
+      <DocSection title={t("docs.rag.title")}>
+        <p>{t("docs.rag.para1")}</p>
+        <p className="mt-2 text-xs text-slate-500">{t("docs.rag.para2")}</p>
       </DocSection>
 
-      <DocSection title="API Endpoints">
+      <DocSection title={t("docs.api.title")}>
         <p className="mb-2 text-xs text-slate-500">
-          All API routes are prefixed with <code className="text-emerald-400">/api/v1</code>.
-          Full Swagger docs at <a href="http://localhost:8000/docs" className="text-emerald-400 underline" target="_blank" rel="noopener">/docs</a>.
+          {t("docs.api.description", { prefix: "/api/v1", docs: "/docs" })}
         </p>
         <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
-          {[
-            ["GET /health", "Basic health check"],
-            ["GET /health/detailed", "Full service status"],
-            ["GET /metrics", "Prometheus metrics"],
-            ["GET/PUT /api/v1/settings", "LLM/RAG settings"],
-            ["POST /api/v1/project/analyze", "Analyze project stats"],
-            ["POST /api/v1/project/question-stream", "Streaming project Q&A"],
-            ["POST /api/v1/chat/tool-stream", "Chat with tool-calling"],
-            ["POST /api/v1/project/export", "Export project as ZIP"],
-            ["POST /api/v1/project/share", "Generate share link"],
-            ["GET /shared/{token}", "View shared project"],
-          ].map(([ep, desc]) => (
+          {apiEndpoints.map(([ep, descKey]) => (
             <div key={ep} className="flex flex-col rounded-lg bg-slate-800/50 px-3 py-1.5">
               <code className="text-emerald-400">{ep}</code>
-              <span className="text-slate-500">{desc}</span>
+              <span className="text-slate-500">{t(descKey)}</span>
             </div>
           ))}
         </div>

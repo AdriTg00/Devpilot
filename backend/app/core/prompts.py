@@ -169,17 +169,51 @@ Describe la arquitectura general.
 Describe the overall architecture.
 """
 
+CODE_REVIEW_CATEGORIES = [
+    {"name": "Potential Bugs", "color": "red"},
+    {"name": "Code Smells", "color": "amber"},
+    {"name": "Security", "color": "orange"},
+    {"name": "Performance", "color": "yellow"},
+    {"name": "Maintainability", "color": "blue"},
+]
+
+_CODE_REVIEW_CAT_LINES = "\n".join(
+    f"{i+1}. **{c['name'].upper()}** — "
+    + {
+        "Potential Bugs": "Errores lógicos, condiciones mal manejadas, race conditions, null safety, off-by-one, recursos no cerrados.",
+        "Code Smells": "Funciones largas, duplicated code, nested too deep, magic numbers, dead code, poor naming, falta de tipos.",
+        "Security": "Input sin validar, path traversal, XSS, SQL injection, hardcoded secrets, falta de sanitización.",
+        "Performance": "Bucles innecesarios, N+1 queries, memory leaks, falta de lazy loading, bundle size.",
+        "Maintainability": "Mala organización, falta de modularidad, acoplamiento excesivo, falta de tests.",
+    }[c["name"]]
+    for i, c in enumerate(CODE_REVIEW_CATEGORIES)
+)
+
+_CAT_TAGS = {
+    "Potential Bugs": "Bug",
+    "Code Smells": "Smell",
+    "Security": "Security Issue",
+    "Performance": "Performance",
+    "Maintainability": "Maintainability",
+}
+
+_CODE_REVIEW_STRUCTURE = "\n\n".join(
+    f"## {c['name']}\n\n### [{_CAT_TAGS.get(c['name'], c['name'])}] Descripción breve\n"
+    + "- **File**: `ruta/archivo`\n"
+    + "- **Line**: ~N\n"
+    + "- **Issue**: Explicación del problema\n"
+    + "- **Fix**: Sugerencia de solución\n\n"
+    + "(Repetir por cada issue encontrado)"
+    for c in CODE_REVIEW_CATEGORIES
+)
+
 CODE_REVIEW_PROMPT = """
 {language_instruction}
 Eres un Staff Software Engineer realizando una auditoría de código exhaustiva.
 
 Analiza los archivos del proyecto y busca:
 
-1. **POTENTIAL BUGS** — Errores lógicos, condiciones mal manejadas, race conditions, null safety, off-by-one, recursos no cerrados.
-2. **CODE SMELLS** — Funciones largas, duplicated code, nested too deep, magic numbers, dead code, poor naming, falta de tipos.
-3. **SECURITY** — Input sin validar, path traversal, XSS, SQL injection, hardcoded secrets, falta de sanitización.
-4. **PERFORMANCE** — Bucles innecesarios, N+1 queries, memory leaks, falta de lazy loading, bundle size.
-5. **MAINTAINABILITY** — Mala organización, falta de modularidad, acoplamiento excesivo, falta de tests.
+{category_lines}
 
 Reglas obligatorias:
 - SOLO menciona problemas reales basados en el código proporcionado.
@@ -188,29 +222,7 @@ Reglas obligatorias:
 - Si el proyecto está bien escrito y no hay issues graves, indícalo honestamente.
 - Usa formato Markdown con encabezados por categoría.
 
-Estructura de respuesta:
-
-## Potential Bugs
-
-### [Bug] Descripción breve
-- **File**: `ruta/archivo`
-- **Line**: ~N
-- **Issue**: Explicación del problema
-- **Fix**: Sugerencia de solución
-
-(Repetir por cada issue encontrado)
-
-## Code Smells
-...
-
-## Security
-...
-
-## Performance
-...
-
-## Maintainability
-...
+Estructura de respuesta:{structure_headers}
 
 Si una categoría no tiene issues, escribe "Ninguno detectado."
 

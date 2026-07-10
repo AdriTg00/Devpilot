@@ -22,6 +22,8 @@ from app.models.project import (
     AIFixApplyRequest,
     AIFixRequest,
     CloseRequest,
+    CodeReviewCategoriesResponse,
+    CodeReviewCategoryItem,
     FileContentResponse,
     FileRequest,
     ProjectQuestionRequest,
@@ -35,6 +37,7 @@ from app.models.project import (
     SearchResponse,
     UploadRequest,
 )
+from app.core.prompts import CODE_REVIEW_CATEGORIES
 from app.services.code_explainer_service import CodeExplainerService
 from app.services.llm_service import get_llm_service
 from app.services.memory_service import memory_service
@@ -222,6 +225,12 @@ def ask_project_question_stream(request: ProjectQuestionRequest):
             "X-RAG-Sources": json.dumps(rag_sources),
         },
     )
+
+
+@router.get("/code-review/categories", response_model=CodeReviewCategoriesResponse)
+def code_review_categories():
+    items = [CodeReviewCategoryItem(**c) for c in CODE_REVIEW_CATEGORIES]
+    return CodeReviewCategoriesResponse(categories=items)
 
 
 @router.post("/code-review")

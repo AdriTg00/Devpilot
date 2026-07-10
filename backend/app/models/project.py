@@ -97,3 +97,12 @@ class AIFixRequest(BaseModel):
 class AIFixApplyRequest(BaseModel):
     path: str = Field(..., min_length=1)
     content: str = Field(..., min_length=1)
+
+
+class CodeReviewCategoryItem(BaseModel):
+    name: str
+    color: str
+
+
+class CodeReviewCategoriesResponse(BaseModel):
+    categories: list[CodeReviewCategoryItem]

@@ -8,6 +8,8 @@ from app.core.prompts import (
     EXPLAIN_PROJECT_PROMPT,
     README_PROMPT,
     language_instruction,
+    _CODE_REVIEW_CAT_LINES,
+    _CODE_REVIEW_STRUCTURE,
 )
 from app.services.llm_service import get_llm_service
 from app.tools.directory_reader import list_files
@@ -189,6 +191,8 @@ class CodeExplainerService:
         _, context = self._build_context(project_path, max_chars=2000, max_total=12000)
         prompt = CODE_REVIEW_PROMPT.format(
             language_instruction=language_instruction(language),
+            category_lines=_CODE_REVIEW_CAT_LINES,
+            structure_headers=_CODE_REVIEW_STRUCTURE,
             context=context,
         )
         yield "\n"

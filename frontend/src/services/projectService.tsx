@@ -605,6 +605,16 @@ export interface HealthResponse {
   base_url: string;
 }
 
+export interface CodeReviewCategory {
+  name: string;
+  color: string;
+}
+
+export async function fetchCodeReviewCategories(): Promise<CodeReviewCategory[]> {
+  const { data } = await api.get("/project/code-review/categories");
+  return data.categories ?? [];
+}
+
 export async function getHealthDetailed(): Promise<HealthResponse> {
   const response = await fetch(`${ROOT_BASE}/health/detailed`);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);

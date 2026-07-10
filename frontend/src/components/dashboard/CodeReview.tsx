@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useToast } from "../../contexts/ToastContext";
-import { streamCodeReview, streamAiFix } from "../../services/projectService";
+import { streamCodeReview, streamAiFix, fetchCodeReviewCategories } from "../../services/projectService";
+import type { CodeReviewCategory } from "../../services/projectService";
 import Card from "../ui/Card";
 import Button from "../ui/Button";
 import TypingEffect from "../ui/TypingEffect";
@@ -13,7 +14,15 @@ const fadeUp = {
   visible: { opacity: 1, y: 0 },
 };
 
-const CATEGORY_META: Record<string, { dot: string; color: string }> = {
+const COLOR_PALETTE: Record<string, { dot: string; color: string }> = {
+  red:    { dot: "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]", color: "text-red-400 border-red-800/40" },
+  amber:  { dot: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.6)]", color: "text-amber-400 border-amber-800/40" },
+  orange: { dot: "bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.6)]", color: "text-orange-400 border-orange-800/40" },
+  yellow: { dot: "bg-yellow-500 shadow-[0_0_6px_rgba(234,179,8,0.6)]", color: "text-yellow-400 border-yellow-800/40" },
+  blue:   { dot: "bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]", color: "text-blue-400 border-blue-800/40" },
+};
+
+const FALLBACK_META: Record<string, { dot: string; color: string }> = {
   "Potential Bugs": { dot: "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]", color: "text-red-400 border-red-800/40" },
   "Code Smells": { dot: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.6)]", color: "text-amber-400 border-amber-800/40" },
   "Security": { dot: "bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.6)]", color: "text-orange-400 border-orange-800/40" },
@@ -21,10 +30,31 @@ const CATEGORY_META: Record<string, { dot: string; color: string }> = {
   "Maintainability": { dot: "bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]", color: "text-blue-400 border-blue-800/40" },
 };
 
+const DEFAULT_META = { dot: "bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.6)]", color: "text-slate-400 border-slate-700" };
+
 export default function CodeReview() {
   const { currentPath, analysis } = useProject();
   const { language, t } = useLanguage();
   const { toast } = useToast();
+
+  const [catDefs, setCatDefs] = useState<CodeReviewCategory[] | null>(null);
+
+  const categoryMeta = useMemo(() => {
+    if (!catDefs) return FALLBACK_META;
+    const map: Record<string, { dot: string; color: string }> = {};
+    for (const c of catDefs) {
+      map[c.name] = COLOR_PALETTE[c.color] ?? DEFAULT_META;
+    }
+    return map;
+  }, [catDefs]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCodeReviewCategories()
+      .then((cats) => { if (!cancelled) setCatDefs(cats); })
+      .catch(() => { if (!cancelled) setCatDefs(null); });
+    return () => { cancelled = true; };
+  }, []);
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
@@ -167,7 +197,7 @@ export default function CodeReview() {
                     const body = catRaw.replace(/^## .+\n*/m, "").trim();
                     if (!body || /ninguno detectado|none detected/i.test(body)) return null;
 
-                    const meta = CATEGORY_META[title] || { dot: "bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.6)]", color: "text-slate-400 border-slate-700" };
+                    const meta = categoryMeta[title] || DEFAULT_META;
                     const findings = parseFindings(body);
 
                     return (

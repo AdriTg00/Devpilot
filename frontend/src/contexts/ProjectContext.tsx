@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useState,
+  useRef,
   type ReactNode,
 } from "react";
 
@@ -36,6 +37,22 @@ function saveRecent(path: string) {
   localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 10)));
 }
 
+interface ProjectViewState {
+  analysis: ProjectAnalysis | null;
+  files: ProjectFile[];
+  selectedFile: ProjectFile | null;
+  fileContent: string;
+  fileExplanation: string;
+  fileLoading: boolean;
+  explaining: boolean;
+}
+
+interface ProjectTab {
+  id: string;
+  path: string;
+  name: string;
+  view: ProjectViewState;
+}
 
 interface ProjectContextType {
   currentPath: string;
@@ -66,60 +83,100 @@ interface ProjectContextType {
   uploadAndAnalyze: (name: string, files: Record<string, string>) => Promise<void>;
   closeProject: () => Promise<void>;
   resumeProject: () => Promise<void>;
-} 
+
+  projectTabs: { id: string; path: string; name: string }[];
+  activeTabId: string | null;
+  switchTab: (id: string) => void;
+  closeTab: (id: string) => Promise<void>;
+}
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
+
+function emptyView(): ProjectViewState {
+  return {
+    analysis: null,
+    files: [],
+    selectedFile: null,
+    fileContent: "",
+    fileExplanation: "",
+    fileLoading: false,
+    explaining: false,
+  };
+}
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const { language, t } = useLanguage();
   const { toast } = useToast();
-  const [currentPath, setCurrentPath] = useState("");
-  const [analysis, setAnalysis] = useState<ProjectAnalysis | null>(null);
-  const [files, setFiles] = useState<ProjectFile[]>([]);
-
-  const [selectedFile, setSelectedFile] = useState<ProjectFile | null>(null);
-
-  const [fileContent, setFileContent] = useState("");
-
-  const [fileExplanation, setFileExplanation] = useState("");
-
+  const [tabs, setTabs] = useState<ProjectTab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
   const [uploading, setUploading] = useState(false);
   const [closing, setClosing] = useState(false);
-
-  const [explaining, setExplaining] = useState(false);
-
-  const [fileLoading, setFileLoading] = useState(false);
-
   const [recentProjects, setRecentProjects] = useState<string[]>(loadRecent);
+  const nextId = useRef(1);
 
   const previousPath = localStorage.getItem(PREV_PATH_KEY) || "";
+
+  const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
+
+  const currentPath = activeTab?.path ?? "";
+  const analysis = activeTab?.view.analysis ?? null;
+  const files = activeTab?.view.files ?? [];
+  const selectedFile = activeTab?.view.selectedFile ?? null;
+  const fileContent = activeTab?.view.fileContent ?? "";
+  const fileExplanation = activeTab?.view.fileExplanation ?? "";
+  const fileLoading = activeTab?.view.fileLoading ?? false;
+  const explaining = activeTab?.view.explaining ?? false;
+
+  function updateView(partial: Partial<ProjectViewState>, tabId?: string) {
+    const id = tabId ?? activeTabId;
+    if (!id) return;
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.id === id ? { ...t, view: { ...t.view, ...partial } } : t,
+      ),
+    );
+  }
+
+  function addTab(path: string, name: string, view?: ProjectViewState): string {
+    const id = `tab-${nextId.current++}`;
+    const tab: ProjectTab = { id, path, name, view: view ?? emptyView() };
+    setTabs((prev) => [...prev, tab]);
+    setActiveTabId(id);
+    saveRecent(path);
+    localStorage.setItem(PREV_PATH_KEY, path);
+    setRecentProjects(loadRecent());
+    return id;
+  }
+
+  function setCurrentPath(path: string) {
+    const existing = tabs.find((t) => t.path === path);
+    if (existing) {
+      setActiveTabId(existing.id);
+    } else {
+      addTab(path, path.split("/").filter(Boolean).pop() || path);
+    }
+  }
 
   async function uploadAndAnalyze(name: string, files: Record<string, string>) {
     setUploading(true);
     try {
       const data = await uploadProject(name, files);
-      console.log("[upload] response:", data);
       const workspacePath = data.workspace_path;
-      setCurrentPath(workspacePath);
-
       const analysisData = {
         ...data.analysis,
         projectName: name,
         projectPath: workspacePath,
       };
-      console.log("[upload] analysis:", analysisData);
-      setAnalysis(analysisData);
-
-      console.log("[upload] files:", data.files?.length);
-      setFiles(data.files || []);
-      setSelectedFile(null);
-      setFileContent("");
-      setFileExplanation("");
-      saveRecent(workspacePath);
-      localStorage.setItem(PREV_PATH_KEY, workspacePath);
-      setRecentProjects(loadRecent());
+      addTab(workspacePath, name, {
+        analysis: analysisData,
+        files: data.files || [],
+        selectedFile: null,
+        fileContent: "",
+        fileExplanation: "",
+        fileLoading: false,
+        explaining: false,
+      });
       toast("Proyecto subido y analizado correctamente", "success");
     } catch (err) {
       console.error("[upload] error:", err);
@@ -129,23 +186,35 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function closeProject() {
-    if (!currentPath) return;
+  async function closeTab(tabId: string) {
+    const tab = tabs.find((t) => t.id === tabId);
+    if (!tab) return;
     setClosing(true);
     try {
-      await closeProjectApi(currentPath);
-      setCurrentPath("");
-      setAnalysis(null);
-      setFiles([]);
-      setSelectedFile(null);
-      setFileContent("");
-      setFileExplanation("");
-      toast("Proyecto cerrado", "success");
+      await closeProjectApi(tab.path);
     } catch {
-      toast("Error al cerrar el proyecto", "error");
+      /* best-effort cleanup */
     } finally {
+      setTabs((prev) => {
+        const remaining = prev.filter((t) => t.id !== tabId);
+        if (remaining.length === 0) {
+          setActiveTabId(null);
+        } else if (activeTabId === tabId) {
+          setActiveTabId(remaining[0].id);
+        }
+        return remaining;
+      });
       setClosing(false);
     }
+  }
+
+  async function closeProject() {
+    if (!activeTabId) return;
+    await closeTab(activeTabId);
+  }
+
+  function switchTab(id: string) {
+    setActiveTabId(id);
   }
 
   function clearRecentProjects() {
@@ -156,24 +225,30 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   async function resumeProject() {
     const prev = localStorage.getItem(PREV_PATH_KEY);
     if (!prev) return;
-    setCurrentPath(prev);
-    await analyzeWithPath(prev);
+    const existing = tabs.find((t) => t.path === prev);
+    const tabId: string = existing
+      ? (setActiveTabId(existing.id), existing.id)
+      : addTab(prev, prev.split("/").filter(Boolean).pop() || prev);
+    await analyzeWithPath(prev, tabId);
   }
 
-  async function analyzeWithPath(path: string) {
+  async function analyzeWithPath(path: string, tabId?: string) {
     setLoading(true);
     try {
       const data = await analyzeProject(path);
-      setAnalysis({
+      const analysisData = {
         ...data,
         projectName: path.replace(/\\/g, "/").split("/").filter(Boolean).pop(),
         projectPath: path,
-      });
+      };
       const projectFiles = await getFiles(path);
-      setFiles(projectFiles);
-      setSelectedFile(null);
-      setFileContent("");
-      setFileExplanation("");
+      updateView({
+        analysis: analysisData,
+        files: projectFiles,
+        selectedFile: null,
+        fileContent: "",
+        fileExplanation: "",
+      }, tabId);
       saveRecent(path);
       setRecentProjects(loadRecent());
       localStorage.setItem(PREV_PATH_KEY, path);
@@ -191,40 +266,30 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }
 
   async function selectFile(file: ProjectFile) {
-    setSelectedFile(file);
-
-    setFileExplanation("");
-    setFileLoading(true);
-
+    updateView({ selectedFile: file, fileExplanation: "", fileLoading: true });
     try {
       const data = await getFileContent(file.path);
-
-      setFileContent(data.content);
+      updateView({ fileContent: data.content });
     } catch (error) {
       console.error("Error loading file:", error);
       toast("No se pudo cargar el archivo", "error");
-
-      setFileContent("");
+      updateView({ fileContent: "" });
     } finally {
-      setFileLoading(false);
+      updateView({ fileLoading: false });
     }
   }
 
   async function explainSelectedFile() {
-    if (!selectedFile) return;
-
-    setExplaining(true);
-    setFileExplanation("");
-
+    const file = selectedFile;
+    if (!file) return;
+    updateView({ explaining: true, fileExplanation: "" });
     await explainFileStream(
-      selectedFile.path,
+      file.path,
       language,
-      (text: string) => setFileExplanation(text),
-      () => setExplaining(false),
-      (error: Error) => {
-        console.error("Error explaining file:", error);
-        setFileExplanation(t("viewer.error"));
-        setExplaining(false);
+      (text: string) => updateView({ fileExplanation: text }),
+      () => updateView({ explaining: false }),
+      () => {
+        updateView({ fileExplanation: t("viewer.error"), explaining: false });
         toast("Error al explicar el archivo", "error");
       },
     );
@@ -261,6 +326,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         uploadAndAnalyze,
         closeProject,
         resumeProject,
+
+        projectTabs: tabs.map((t) => ({ id: t.id, path: t.path, name: t.name })),
+        activeTabId,
+        switchTab,
+        closeTab,
       }}
     >
       {children}
@@ -270,10 +340,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
 export function useProject() {
   const context = useContext(ProjectContext);
-
   if (!context) {
     throw new Error("useProject must be used inside ProjectProvider");
   }
-
   return context;
 }

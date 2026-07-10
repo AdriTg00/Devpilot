@@ -3,6 +3,7 @@ import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import CollapsibleSection from "../../components/ui/CollapsibleSection";
 import ProjectSelector from "../../components/dashboard/ProjectSelector";
+import ProjectTabs from "../../components/dashboard/ProjectTabs";
 import CurrentProject from "../../components/dashboard/CurrentProject";
 import StatsGrid from "../../components/dashboard/StatsGrid";
 import ProjectActions from "../../components/dashboard/ProjectActions";
@@ -32,6 +33,9 @@ export default function Project() {
       initial="hidden"
       animate="visible"
     >
+      <motion.div variants={fadeUp}>
+        <ProjectTabs />
+      </motion.div>
       <motion.div variants={fadeUp}>
         <ProjectSelector />
       </motion.div>

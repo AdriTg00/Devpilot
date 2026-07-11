@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Drawer } from "hiraki";
 import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import {
@@ -103,7 +104,7 @@ export default function Chat() {
   const [typingId, setTypingId] = useState<number | null>(null);
   const [sessions, setSessions] = useState<SessionEntry[]>([]);
   const [activeSession, setActiveSession] = useState<string | null>(null);
-  const [sessionsOpen, setSessionsOpen] = useState(true);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SessionSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -298,126 +299,129 @@ export default function Chat() {
 
   return (
     <div className="mx-auto flex h-[calc(100vh-12rem)] max-w-5xl gap-4">
-      <div
-        className={`flex shrink-0 flex-col transition-all ${
-          sessionsOpen ? "w-56" : "w-10"
-        }`}
-      >
-        <div className="mb-3 flex items-center justify-between">
-          <button
-            onClick={() => setSessionsOpen(!sessionsOpen)}
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
-            title={sessionsOpen ? t("chat.collapse") : t("chat.expand")}
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sessionsOpen ? "M11 19l-7-7 7-7m8 14l-7-7 7-7" : "M13 5l7 7-7 7M5 5l7 7-7 7"} />
-            </svg>
-          </button>
-          {sessionsOpen && (
-            <button
-              onClick={handleNewSession}
-              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-emerald-400"
-              title={t("chat.new_session")}
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+      <Drawer.Root open={sessionsOpen} onOpenChange={setSessionsOpen} direction="left" variant="sheet">
+        <Drawer.Portal>
+          <Drawer.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
+          <Drawer.Content className="flex w-64 flex-col border-r border-slate-700 bg-slate-900 outline-none">
+            <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+              <h3 className="text-sm font-semibold text-white">{t("chat.sessions")}</h3>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleNewSession}
+                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-emerald-400"
+                  title={t("chat.new_session")}
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+                <Drawer.Close className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </Drawer.Close>
+              </div>
+            </div>
+            <div className="relative px-3 py-2">
+              <svg className="pointer-events-none absolute left-5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-            </button>
-          )}
-        </div>
-
-        {sessionsOpen && (
-          <div className="relative mb-2">
-            <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("chat.search_sessions_placeholder")}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 py-1.5 pl-8 pr-2 text-xs text-white outline-none placeholder:text-slate-500 focus:border-emerald-500"
-            />
-          </div>
-        )}
-
-        {sessionsOpen && (
-          <div className="flex-1 space-y-1 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/50 p-2">
-            {searching && (
-              <p className="px-2 py-8 text-center text-xs text-slate-500">{t("chat.search_sessions")}</p>
-            )}
-            {!searching && searchResults !== null && searchResults.length === 0 && (
-              <p className="px-2 py-8 text-center text-xs text-slate-500">{t("chat.no_results")}</p>
-            )}
-            {!searching && searchResults === null && sessions.length === 0 && (
-              <p className="px-2 py-8 text-center text-xs text-slate-500">
-                {t("chat.no_sessions")}
-              </p>
-            )}
-            {searchResults !== null
-              ? searchResults.map((r) => (
-                  <div
-                    key={r.session.id}
-                    className={`cursor-pointer rounded-lg px-2 py-1.5 text-xs transition ${
-                      activeSession === r.session.id
-                        ? "bg-emerald-600/20 text-emerald-300"
-                        : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                    }`}
-                    onClick={() => {
-                      switchSession(r.session.id);
-                      setSearchQuery("");
-                      setSearchResults(null);
-                    }}
-                  >
-                    <span className="block truncate font-medium">{r.session.name}</span>
-                    <span className="mt-0.5 block truncate text-[10px] text-slate-500">
-                      {r.matches[r.matches.length - 1].content}
-                    </span>
-                  </div>
-                ))
-              : sessions.map((s) => (
-                  <div
-                    key={s.id}
-                    className={`group flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 text-xs transition ${
-                      activeSession === s.id
-                        ? "bg-emerald-600/20 text-emerald-300"
-                        : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                    }`}
-                    onClick={() => switchSession(s.id)}
-                  >
-                    <span className="truncate">{s.name}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteSession(s.id);
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t("chat.search_sessions_placeholder")}
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 py-1.5 pl-8 pr-2 text-xs text-white outline-none placeholder:text-slate-500 focus:border-emerald-500"
+              />
+            </div>
+            <Drawer.ScrollArea className="flex-1 space-y-1 overflow-y-auto px-3 pb-3">
+              {searching && (
+                <p className="px-2 py-8 text-center text-xs text-slate-500">{t("chat.search_sessions")}</p>
+              )}
+              {!searching && searchResults !== null && searchResults.length === 0 && (
+                <p className="px-2 py-8 text-center text-xs text-slate-500">{t("chat.no_results")}</p>
+              )}
+              {!searching && searchResults === null && sessions.length === 0 && (
+                <p className="px-2 py-8 text-center text-xs text-slate-500">
+                  {t("chat.no_sessions")}
+                </p>
+              )}
+              {searchResults !== null
+                ? searchResults.map((r) => (
+                    <div
+                      key={r.session.id}
+                      className={`cursor-pointer rounded-lg px-2 py-1.5 text-xs transition ${
+                        activeSession === r.session.id
+                          ? "bg-emerald-600/20 text-emerald-300"
+                          : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                      }`}
+                      onClick={() => {
+                        switchSession(r.session.id);
+                        setSearchQuery("");
+                        setSearchResults(null);
                       }}
-                      className="shrink-0 rounded p-0.5 text-slate-600 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
-                      title={t("chat.delete")}
                     >
-                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-          </div>
-        )}
-      </div>
+                      <span className="block truncate font-medium">{r.session.name}</span>
+                      <span className="mt-0.5 block truncate text-[10px] text-slate-500">
+                        {r.matches[r.matches.length - 1].content}
+                      </span>
+                    </div>
+                  ))
+                : sessions.map((s) => (
+                    <div
+                      key={s.id}
+                      className={`group flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 text-xs transition ${
+                        activeSession === s.id
+                          ? "bg-emerald-600/20 text-emerald-300"
+                          : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                      }`}
+                      onClick={() => switchSession(s.id)}
+                    >
+                      <span className="truncate">{s.name}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSession(s.id);
+                        }}
+                        className="shrink-0 rounded p-0.5 text-slate-600 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
+                        title={t("chat.delete")}
+                      >
+                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+            </Drawer.ScrollArea>
+          </Drawer.Content>
+        </Drawer.Portal>
+      </Drawer.Root>
 
       <div className="flex flex-1 flex-col">
         <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">{t("chat.title")}</h1>
-            {currentPath && (
-              <p className="mt-1 text-sm text-slate-400">
-                {t("chat.asking_about")} <span className="font-medium text-emerald-400">{analysis?.projectName || currentPath}</span>
-              </p>
-            )}
-            {activeSession && (
-              <p className="mt-0.5 text-xs text-slate-500">
-                Session: {sessions.find((s) => s.id === activeSession)?.name || activeSession}
-              </p>
-            )}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSessionsOpen(true)}
+              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+              title={t("chat.sessions")}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold">{t("chat.title")}</h1>
+              {currentPath && (
+                <p className="mt-0.5 text-sm text-slate-400">
+                  {t("chat.asking_about")} <span className="font-medium text-emerald-400">{analysis?.projectName || currentPath}</span>
+                </p>
+              )}
+              {activeSession && (
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Session: {sessions.find((s) => s.id === activeSession)?.name || activeSession}
+                </p>
+              )}
+            </div>
           </div>
           <button
             onClick={async () => {

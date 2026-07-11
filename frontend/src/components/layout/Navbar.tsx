@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, type NavLinkRenderProps } from "react-router-dom";
 import { useLanguage } from "../../contexts/LanguageContext";
 import logo from "../../assets/DevPilotSinFondo.png";
 
@@ -36,7 +36,7 @@ export default function Navbar() {
             key={link.path}
             to={link.path}
             aria-label={t(link.key)}
-            className={({ isActive }) =>
+            className={({ isActive }: NavLinkRenderProps) =>
               `whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                 isActive
                   ? "border-emerald-500 text-emerald-400"

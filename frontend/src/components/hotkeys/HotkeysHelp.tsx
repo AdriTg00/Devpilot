@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Drawer } from "hiraki";
 
 interface Shortcut {
   keys: string;
@@ -43,54 +43,35 @@ export default function HotkeysHelp() {
         e.preventDefault();
         setOpen(true);
       }
-      if (e.key === "Escape" && open) {
-        setOpen(false);
-      }
     }
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open]);
+  }, []);
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={() => setOpen(false)}
-        >
-          <motion.div
-            className="mx-4 w-full max-w-lg overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl"
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.15 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
-              <h2 className="text-lg font-bold text-white">Keyboard Shortcuts</h2>
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-white"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="divide-y divide-slate-800 px-3 py-2">
-              {SHORTCUTS.map((s, i) => (
-                <ShortcutRow key={i} {...s} />
-              ))}
-            </div>
-            <div className="border-t border-slate-800 px-5 py-3 text-center text-[11px] text-slate-600">
-              Press <kbd className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-emerald-400">?</kbd> to open this help anytime
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <Drawer.Root open={open} onOpenChange={setOpen} direction="bottom" variant="sheet" snapPoints={['55%']}>
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
+        <Drawer.Content className="mx-auto max-w-lg rounded-t-2xl border border-slate-700 bg-slate-900 shadow-2xl outline-none">
+          <Drawer.Handle className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-slate-600" />
+          <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+            <h2 className="text-lg font-bold text-white">Keyboard Shortcuts</h2>
+            <Drawer.Close className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-white">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </Drawer.Close>
+          </div>
+          <Drawer.ScrollArea className="divide-y divide-slate-800 px-3 py-2 max-h-[50vh]">
+            {SHORTCUTS.map((s, i) => (
+              <ShortcutRow key={i} {...s} />
+            ))}
+          </Drawer.ScrollArea>
+          <div className="border-t border-slate-800 px-5 py-3 text-center text-[11px] text-slate-600">
+            Press <kbd className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-emerald-400">?</kbd> to open this help anytime
+          </div>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }

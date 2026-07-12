@@ -57,6 +57,7 @@ export default function FileExplorer() {
       <div className="mb-4 flex items-center justify-between">
         <div className="flex gap-2">
           <button
+            data-cuelume-toggle="toggle"
             onClick={() => setTab("browse")}
             className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
               tab === "browse"
@@ -67,6 +68,7 @@ export default function FileExplorer() {
             {t("explorer.title")} {tab !== "browse" && <span className="ml-1 text-[10px] text-slate-500">⌘K</span>}
           </button>
           <button
+            data-cuelume-toggle="toggle"
             onClick={() => setTab("search")}
             className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
               tab === "search"

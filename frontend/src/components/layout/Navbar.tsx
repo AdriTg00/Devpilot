@@ -43,6 +43,7 @@ export default function Navbar() {
                   : "border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600"
               }`
             }
+            data-cuelume-hover="tick"
           >
             {t(link.key)}
           </NavLink>

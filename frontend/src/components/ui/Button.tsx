@@ -23,6 +23,8 @@ export default function Button({
 }: ButtonProps) {
   return (
     <button
+      data-cuelume-press="press"
+      data-cuelume-release="release"
       className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-medium text-white transition disabled:opacity-50 ${variantClasses[variant]} ${className}`}
       disabled={disabled || loading}
       {...props}

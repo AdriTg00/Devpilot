@@ -5,6 +5,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import { play } from "cuelume";
 
 type ToastType = "success" | "error" | "info";
 
@@ -28,6 +29,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const toast = useCallback((message: string, type: ToastType = "error") => {
     const id = ++toastId;
     setToasts((prev) => [...prev, { id, message, type }]);
+    if (type === "success") play("success");
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4000);

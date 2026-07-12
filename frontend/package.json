@@ -13,6 +13,7 @@
   "dependencies": {
     "@tailwindcss/typography": "^0.5.20",
     "axios": "^1.18.1",
+    "cuelume": "^0.1.0",
     "framer-motion": "^12.42.0",
     "hiraki": "^0.0.7",
     "lucide-react": "^1.21.0",

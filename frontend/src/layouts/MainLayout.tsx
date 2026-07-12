@@ -9,6 +9,7 @@ import WelcomeHero from "../components/welcome/WelcomeHero";
 import HotkeysHelp from "../components/hotkeys/HotkeysHelp";
 import BackendStatusOverlay from "../components/backend/BackendStatusOverlay";
 import { useWelcome } from "../components/welcome/WelcomeProvider";
+import { useSoundEffects } from "../hooks/useSoundEffects";
 
 const navVariants = {
   hidden: { opacity: 0, y: -40 },
@@ -26,6 +27,8 @@ export default function MainLayout() {
   const location = useLocation();
   const outlet = useOutlet();
   const [cachedPages, setCachedPages] = useState<Record<string, React.ReactElement>>({});
+
+  useSoundEffects();
 
   useEffect(() => {
     if (outlet) {

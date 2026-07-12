@@ -17,6 +17,7 @@ export default function CollapsibleSection({
   return (
     <div>
       <button
+        data-cuelume-toggle="toggle"
         onClick={() => setOpen(!open)}
         className="flex w-full items-center gap-2 text-left text-sm font-semibold tracking-wide text-slate-400 transition-colors hover:text-white"
       >

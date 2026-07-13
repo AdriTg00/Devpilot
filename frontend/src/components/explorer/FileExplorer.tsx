@@ -59,24 +59,24 @@ export default function FileExplorer() {
           <button
             data-cuelume-toggle="toggle"
             onClick={() => setTab("browse")}
-            className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
+            className={`rounded-[6px] px-3 py-1 text-xs font-medium transition-all duration-200 ${
               tab === "browse"
-                ? "bg-emerald-600 text-white"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-emerald-600/20 text-emerald-300 shadow-[0_0_8px_rgba(34,197,94,0.1)]"
+                : "text-slate-500 hover:text-slate-200"
             }`}
           >
-            {t("explorer.title")} {tab !== "browse" && <span className="ml-1 text-[10px] text-slate-500">⌘K</span>}
+            {t("explorer.title")} {tab !== "browse" && <span className="ml-1 text-[10px] text-slate-600">⌘K</span>}
           </button>
           <button
             data-cuelume-toggle="toggle"
             onClick={() => setTab("search")}
-            className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
+            className={`rounded-[6px] px-3 py-1 text-xs font-medium transition-all duration-200 ${
               tab === "search"
-                ? "bg-emerald-600 text-white"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-emerald-600/20 text-emerald-300 shadow-[0_0_8px_rgba(34,197,94,0.1)]"
+                : "text-slate-500 hover:text-slate-200"
             }`}
           >
-            Search {tab !== "search" && <span className="ml-1 text-[10px] text-slate-500">⇧⌘F</span>}
+            Search {tab !== "search" && <span className="ml-1 text-[10px] text-slate-600">⇧⌘F</span>}
           </button>
         </div>
         {tab === "browse" && files.length > 0 && (
@@ -97,7 +97,7 @@ export default function FileExplorer() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`${t("explorer.search")} (Ctrl+K)`}
-              className="mb-4 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+              className="mb-4 w-full rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-3 py-2 text-sm text-white backdrop-blur-sm placeholder-slate-600 focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)] focus:outline-none"
             />
           )}
 

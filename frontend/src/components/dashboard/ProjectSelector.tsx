@@ -102,12 +102,12 @@ export default function ProjectSelector() {
         onDragOver={(e) => { e.preventDefault(); if (!busy) setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 transition ${
+        className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 transition-all duration-300 ${
           busy
-            ? "border-slate-700"
+            ? "border-emerald-900/30"
             : dragOver
-              ? "border-emerald-500 bg-emerald-900/20"
-              : "border-slate-700 hover:border-slate-600"
+              ? "border-emerald-500 bg-emerald-900/10 shadow-[0_0_30px_rgba(34,197,94,0.08)]"
+              : "border-emerald-900/20 hover:border-emerald-700/40 hover:shadow-[0_0_20px_rgba(34,197,94,0.04)]"
         }`}
       >
         {busy ? (
@@ -140,19 +140,19 @@ export default function ProjectSelector() {
               />
             </svg>
 
-            <p className={`mb-1 text-center text-sm ${dragOver ? "text-emerald-400" : "text-slate-400"}`}>
+            <p className={`mb-1 text-center text-sm ${dragOver ? "text-emerald-300" : "text-slate-400"}`}>
               Arrastra una carpeta aquí
             </p>
 
             <div className="mb-4 flex items-center gap-3 text-xs text-slate-600">
-              <span className="h-px w-16 bg-slate-700" />
+              <span className="h-px w-16 bg-emerald-900/30" />
               <span>o</span>
-              <span className="h-px w-16 bg-slate-700" />
+              <span className="h-px w-16 bg-emerald-900/30" />
             </div>
 
             <button
               onClick={handleBrowse}
-              className="rounded-lg border border-slate-700 bg-slate-800 px-5 py-2 text-sm text-slate-300 transition hover:border-slate-600 hover:bg-slate-700"
+              className="rounded-[6px] border border-emerald-900/30 bg-slate-800/40 px-5 py-2 text-sm text-slate-300 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/50 hover:bg-slate-700/40 hover:shadow-[0_0_12px_rgba(34,197,94,0.06)]"
             >
               Seleccionar carpeta
             </button>

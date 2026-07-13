@@ -6,16 +6,16 @@ export default function ProjectTabs() {
   if (projectTabs.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-700/50 pb-2">
+    <div className="flex flex-wrap items-center gap-1.5 border-b border-emerald-900/20 pb-2">
       {projectTabs.map((tab) => {
         const isActive = tab.id === activeTabId;
         return (
           <div
             key={tab.id}
-            className={`group flex items-center gap-2 rounded-t-lg px-3 py-2 text-sm transition cursor-pointer select-none ${
+            className={`group flex items-center gap-2 rounded-t-lg px-3 py-2 text-sm transition-all cursor-pointer select-none ${
               isActive
-                ? "border border-b-0 border-slate-700 bg-slate-800/60 text-slate-200"
-                : "text-slate-500 hover:bg-slate-800/30 hover:text-slate-300"
+                ? "border border-b-0 border-emerald-900/30 bg-slate-800/60 text-emerald-300 shadow-[0_-2px_8px_rgba(34,197,94,0.06)]"
+                : "text-slate-500 hover:bg-slate-800/30 hover:text-slate-200"
             }`}
             onClick={() => switchTab(tab.id)}
           >

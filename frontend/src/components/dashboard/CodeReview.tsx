@@ -15,22 +15,22 @@ const fadeUp = {
 };
 
 const COLOR_PALETTE: Record<string, { dot: string; color: string }> = {
-  red:    { dot: "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]", color: "text-red-400 border-red-800/40" },
-  amber:  { dot: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.6)]", color: "text-amber-400 border-amber-800/40" },
-  orange: { dot: "bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.6)]", color: "text-orange-400 border-orange-800/40" },
-  yellow: { dot: "bg-yellow-500 shadow-[0_0_6px_rgba(234,179,8,0.6)]", color: "text-yellow-400 border-yellow-800/40" },
-  blue:   { dot: "bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]", color: "text-blue-400 border-blue-800/40" },
+  red:    { dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]", color: "text-red-400 border-red-800/40" },
+  amber:  { dot: "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]", color: "text-amber-400 border-amber-800/40" },
+  orange: { dot: "bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]", color: "text-orange-400 border-orange-800/40" },
+  yellow: { dot: "bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]", color: "text-yellow-400 border-yellow-800/40" },
+  blue:   { dot: "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]", color: "text-blue-400 border-blue-800/40" },
 };
 
 const FALLBACK_META: Record<string, { dot: string; color: string }> = {
-  "Potential Bugs": { dot: "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]", color: "text-red-400 border-red-800/40" },
-  "Code Smells": { dot: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.6)]", color: "text-amber-400 border-amber-800/40" },
-  "Security": { dot: "bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.6)]", color: "text-orange-400 border-orange-800/40" },
-  "Performance": { dot: "bg-yellow-500 shadow-[0_0_6px_rgba(234,179,8,0.6)]", color: "text-yellow-400 border-yellow-800/40" },
-  "Maintainability": { dot: "bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]", color: "text-blue-400 border-blue-800/40" },
+  "Potential Bugs": { dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]", color: "text-red-400 border-red-800/40" },
+  "Code Smells": { dot: "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]", color: "text-amber-400 border-amber-800/40" },
+  "Security": { dot: "bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]", color: "text-orange-400 border-orange-800/40" },
+  "Performance": { dot: "bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]", color: "text-yellow-400 border-yellow-800/40" },
+  "Maintainability": { dot: "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]", color: "text-blue-400 border-blue-800/40" },
 };
 
-const DEFAULT_META = { dot: "bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.6)]", color: "text-slate-400 border-slate-700" };
+const DEFAULT_META = { dot: "bg-emerald-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]", color: "text-slate-400 border-emerald-900/30" };
 
 export default function CodeReview() {
   const { currentPath, analysis } = useProject();
@@ -154,10 +154,10 @@ export default function CodeReview() {
               <button
                 key={h.id}
                 onClick={() => { setActiveReviewId(h.id); setReviewData(null); setReviewError(false); }}
-                className={`rounded-lg border px-3 py-1.5 text-xs transition ${
+                className={`rounded-[6px] border px-3 py-1.5 text-xs transition-all duration-200 ${
                   isActive
-                    ? "border-emerald-700 bg-emerald-600/20 text-emerald-400"
-                    : "border-slate-700 text-slate-500 hover:border-slate-600 hover:text-slate-300"
+                    ? "border-emerald-700/50 bg-emerald-600/10 text-emerald-300 shadow-[0_0_8px_rgba(34,197,94,0.08)]"
+                    : "border-emerald-900/20 text-slate-500 hover:border-emerald-700/40 hover:text-slate-200"
                 }`}
               >
                 {h.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -179,8 +179,8 @@ export default function CodeReview() {
           >
             <Card>
               <div className="mb-4 flex items-center gap-3">
-<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600/20">
-                   <span className="h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+<div className="flex h-8 w-8 items-center justify-center rounded-[6px] bg-emerald-600/15 shadow-[0_0_10px_rgba(34,197,94,0.08)]">
+                   <span className="h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-white">{t("code_review.title")}</h3>
@@ -221,7 +221,7 @@ export default function CodeReview() {
                     return (
                       <div
                         key={i}
-                        className={`rounded-xl border ${meta.color} bg-slate-800/40 p-4`}
+                        className={`rounded-[6px] border ${meta.color} bg-slate-800/40 p-4`}
                       >
                         <div className="mb-3 flex items-center gap-2.5">
                           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${meta.dot}`} />
@@ -234,7 +234,7 @@ export default function CodeReview() {
                           {cat.findings.map((f, j) => {
                             const findingKey = `${i}-${j}`;
                             return (
-                            <div key={findingKey} className="rounded-lg bg-slate-900/60 p-3">
+                            <div key={findingKey} className="rounded-[6px] bg-slate-900/60 p-3">
                               <div className="mb-2 flex items-start gap-2">
                                 <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${meta.color} border ${meta.color.split(" ")[1] || "border-slate-700"}`}>
                                   {f.tag}
@@ -244,7 +244,7 @@ export default function CodeReview() {
                               {f.file && (
                                 <p className="mb-1 text-[11px] text-slate-500">
                                   <span className="text-slate-600">{t("code_review.file")}</span>{" "}
-                                  <code className="rounded bg-slate-700 px-1 py-0.5 text-emerald-400">{f.file}</code>
+                                  <code className="rounded bg-slate-800 px-1 py-0.5 text-emerald-400">{f.file}</code>
                                   {f.line && <span className="ml-2 text-slate-600">{t("code_review.line", { line: f.line })}</span>}
                                 </p>
                               )}
@@ -263,7 +263,7 @@ export default function CodeReview() {
                                   <button
                                     onClick={() => handleAIFix(f.file, f.issue, f.fix, findingKey)}
                                     disabled={fixingKey === findingKey}
-                                    className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600/20 px-2 py-1 text-[10px] font-medium text-emerald-400 transition hover:bg-emerald-600/30 disabled:opacity-50"
+                                    className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600/15 px-2 py-1 text-[10px] font-medium text-emerald-400 transition-all duration-200 hover:bg-emerald-600/25 hover:shadow-[0_0_8px_rgba(34,197,94,0.15)] disabled:opacity-50"
                                   >
                                     {fixingKey === findingKey ? (
                                       <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -282,7 +282,7 @@ export default function CodeReview() {
 
                               {/* Fix streaming — right below this finding */}
                               {fixingKey === findingKey && (
-                                <div className="mt-3 rounded-lg border border-emerald-700/30 bg-slate-900/80 p-3">
+                                <div className="mt-3 rounded-[6px] border border-emerald-700/30 bg-slate-900/80 p-3">
                                   <div className="mb-2 flex items-center gap-2.5">
                                     <svg className="h-3.5 w-3.5 animate-spin text-emerald-400" fill="none" viewBox="0 0 24 24">
                                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -298,16 +298,16 @@ export default function CodeReview() {
 
                               {/* Fix result with DiffView + Copy + Dismiss */}
                               {fixResultKey === findingKey && fixResultContent && (
-                                <div className="mt-3 rounded-lg border border-emerald-700/30 bg-slate-900/80 p-3">
+                                <div className="mt-3 rounded-[6px] border border-emerald-700/30 bg-slate-900/80 p-3">
                                   <div className="mb-2 flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                      <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+                                      <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]" />
                                       <span className="text-xs font-medium text-white">{t("code_review.suggested_fix")}</span>
                                     </div>
                                     <div className="flex gap-1.5">
                                       <button
                                         onClick={() => handleCopyFix(fixResultContent)}
-                                        className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-700"
+                                        className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-[10px] font-medium text-white transition-all duration-200 hover:bg-emerald-500 hover:shadow-[0_0_10px_rgba(34,197,94,0.25)]"
                                       >
                                         <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />

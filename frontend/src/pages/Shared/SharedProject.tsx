@@ -70,7 +70,7 @@ function FileTree({ files }: { files: string[] }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">
+    <div className="overflow-hidden rounded-[6px] border border-slate-800 bg-slate-900/50">
       <button
         onClick={() => setOpen(!open)}
         className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-slate-300 transition hover:bg-slate-800/50"
@@ -148,7 +148,7 @@ export default function SharedProject() {
           </p>
           <Link
             to="/project"
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500"
+            className="inline-flex items-center gap-2 rounded-[6px] bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-2 text-sm font-medium text-white shadow-[0_0_12px_rgba(34,197,94,0.2)] transition-all duration-200 hover:from-emerald-500 hover:to-emerald-400 hover:shadow-[0_0_20px_rgba(34,197,94,0.35)]"
           >
             Go to DevPilot
           </Link>
@@ -179,7 +179,7 @@ export default function SharedProject() {
         </div>
         <Link
           to="/project"
-          className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400"
+          className="rounded-[6px] border border-emerald-900/30 px-4 py-2 text-sm text-slate-400 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/50 hover:text-emerald-300 hover:shadow-[0_0_8px_rgba(34,197,94,0.06)]"
         >
           Open in DevPilot
         </Link>

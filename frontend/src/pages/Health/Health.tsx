@@ -6,7 +6,7 @@ function StatusDot({ ok }: { ok: boolean }) {
   return (
     <span
       className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${
-        ok ? "bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+        ok ? "bg-emerald-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
       }`}
     />
   );
@@ -14,8 +14,8 @@ function StatusDot({ ok }: { ok: boolean }) {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-      <p className="mb-1 text-[11px] uppercase tracking-wider text-slate-500">{label}</p>
+    <div className="rounded-[6px] border border-emerald-900/20 bg-slate-900/40 p-4 backdrop-blur-sm shadow-sm">
+      <p className="mb-1 text-[11px] uppercase tracking-wider text-emerald-400/60">{label}</p>
       <p className="truncate font-mono text-sm text-slate-200">{value}</p>
     </div>
   );
@@ -23,7 +23,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+    <div className="rounded-[6px] border border-emerald-900/20 bg-slate-900/40 p-5 backdrop-blur-sm cyber-glow">
       <h3 className="mb-4 text-sm font-semibold text-white">{title}</h3>
       {children}
     </div>
@@ -87,7 +87,7 @@ export default function Health() {
   if (error || !data) {
     return (
       <div className="mx-auto max-w-3xl py-12 text-center">
-        <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-red-900/30">
+        <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-[6px] bg-red-900/30">
           <span className="text-3xl">⚠</span>
         </div>
         <h2 className="mb-2 text-xl font-bold text-white">Backend Offline</h2>
@@ -114,7 +114,7 @@ export default function Health() {
         </div>
         <button
           onClick={() => { setLoading(true); fetchHealth(); }}
-          className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400"
+          className="rounded-[6px] border border-emerald-900/30 px-4 py-2 text-sm text-slate-400 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/50 hover:text-emerald-300 hover:shadow-[0_0_8px_rgba(34,197,94,0.06)]"
         >
           Refresh
         </button>
@@ -187,7 +187,7 @@ export default function Health() {
             {services.rag && Object.keys(services.rag).length > 0 && (
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {Object.entries(services.rag).map(([k, v]) => (
-                  <div key={k} className="flex justify-between rounded-lg bg-slate-800/50 px-3 py-1.5">
+                  <div key={k} className="flex justify-between rounded-[6px] bg-slate-800/50 px-3 py-1.5">
                     <span className="text-slate-500">{k}</span>
                     <span className="text-slate-300">{String(v ?? "—")}</span>
                   </div>
@@ -199,15 +199,15 @@ export default function Health() {
 
         <Section title="Storage">
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between rounded-lg bg-slate-800/50 px-3 py-2">
+            <div className="flex justify-between rounded-[6px] bg-slate-800/50 px-3 py-2">
               <span className="text-slate-500">Memory file</span>
               <span className="text-slate-300 w-40 truncate text-right font-mono">{storage.memory_path}</span>
             </div>
-            <div className="flex justify-between rounded-lg bg-slate-800/50 px-3 py-2">
+            <div className="flex justify-between rounded-[6px] bg-slate-800/50 px-3 py-2">
               <span className="text-slate-500">Memory size</span>
               <span className="text-slate-300">{formatBytes(storage.memory_bytes)}</span>
             </div>
-            <div className="flex justify-between rounded-lg bg-slate-800/50 px-3 py-2">
+            <div className="flex justify-between rounded-[6px] bg-slate-800/50 px-3 py-2">
               <span className="text-slate-500">Active shares</span>
               <span className="text-slate-300">{storage.shares_count}</span>
             </div>

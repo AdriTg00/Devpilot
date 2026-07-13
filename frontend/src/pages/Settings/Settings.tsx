@@ -120,7 +120,7 @@ export default function Settings() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-emerald-500" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-emerald-400 shadow-[0_0_12px_rgba(34,197,94,0.15)]" />
       </div>
     );
   }
@@ -146,38 +146,30 @@ export default function Settings() {
               return (
                 <button
                   key={p.id}
-                  onClick={async () => {
+                  onClick={() => {
                     if (!settings || provider === p.id) return;
                     update("provider", p.id);
-                    try {
-                      const updated = { ...settings, provider: p.id };
-                      const result = await updateSettings(updated);
-                      setSettings(result.settings);
-                      toast(t("settings.saved"), "success");
-                    } catch {
-                      toast(t("settings.save_error"), "error");
-                    }
                   }}
-                  className={`rounded-xl border p-3 text-left transition-all ${
+                  className={`rounded-[6px] border p-3 text-left transition-all duration-200 ${
                     active
-                      ? "border-emerald-500 bg-emerald-600/10 ring-1 ring-emerald-500/30"
-                      : "border-slate-800 bg-slate-900/50 hover:border-slate-600"
+                      ? "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_16px_rgba(34,197,94,0.1)]"
+                      : "border-emerald-900/20 bg-slate-900/30 hover:border-emerald-700/40"
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-white">{t(`provider.${p.id}.label`)}</span>
                     {p.local && (
-                      <span className="shrink-0 rounded bg-emerald-900/50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
+                      <span className="shrink-0 rounded bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
                         {t("badge.local")}
                       </span>
                     )}
                     {p.free && !p.local && (
-                      <span className="shrink-0 rounded bg-emerald-900/50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
+                      <span className="shrink-0 rounded bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
                         {t("badge.free")}
                       </span>
                     )}
                     {p.needsKey && (
-                      <span className="shrink-0 rounded bg-amber-900/50 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+                      <span className="shrink-0 rounded bg-amber-900/30 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
                         {t("badge.key")}
                       </span>
                     )}
@@ -208,19 +200,19 @@ export default function Settings() {
                     setTestResults((prev) => ({ ...prev, [p.id]: null }));
                   }}
                   placeholder={t("settings.api_key_placeholder", { provider: t(`provider.${p.id}.label`) })}
-                  className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
+                  className="flex-1 rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-3 py-2 text-sm text-white backdrop-blur-sm placeholder:text-slate-600 focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)] focus:outline-none"
                 />
                 <button
                   onClick={() => handleTest(p.id)}
                   disabled={testing === p.id}
-                  className={`shrink-0 rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                  className={`shrink-0 rounded-[6px] border px-3 py-2 text-xs font-medium transition-all duration-200 ${
                     testing === p.id
-                      ? "border-slate-700 bg-slate-800 text-slate-500"
+                      ? "border-emerald-900/30 bg-slate-800/60 text-slate-500"
                       : testResults[p.id]?.success
-                        ? "border-emerald-600 bg-emerald-600/20 text-emerald-400"
+                        ? "border-emerald-500/50 bg-emerald-600/10 text-emerald-300 shadow-[0_0_8px_rgba(34,197,94,0.08)]"
                         : testResults[p.id]?.success === false
-                          ? "border-red-600 bg-red-600/20 text-red-400"
-                          : "border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500"
+                          ? "border-red-500/50 bg-red-600/10 text-red-300"
+                          : "border-emerald-900/30 bg-slate-800/60 text-slate-300 hover:border-emerald-700/50 hover:shadow-[0_0_8px_rgba(34,197,94,0.06)]"
                   }`}
                 >
                   {testing === p.id ? (
@@ -231,7 +223,7 @@ export default function Settings() {
                 </button>
               </div>
               {testResults[p.id] && (
-                <p className={`mt-1 text-xs ${testResults[p.id]?.success ? "text-emerald-400" : "text-red-400"}`}>
+                <p className={`mt-1 text-xs ${testResults[p.id]?.success ? "text-emerald-300" : "text-red-300"}`}>
                   {testResults[p.id]?.message}
                 </p>
               )}
@@ -240,7 +232,7 @@ export default function Settings() {
 
           {/* ── Model preset (only for cloud providers) ── */}
           {isCloud && (
-            <div className="mt-4 border-t border-slate-800 pt-4">
+            <div className="mt-4 border-t border-emerald-900/20 pt-4">
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">{t("settings.model_quality")}</p>
               <div className="flex gap-2">
                 {MODEL_PRESETS.map((m) => {
@@ -249,13 +241,13 @@ export default function Settings() {
                     <button
                       key={m.id}
                       onClick={() => update("provider_model", m.id)}
-                      className={`flex-1 rounded-lg border px-3 py-2 text-left transition-all ${
+                      className={`flex-1 rounded-[6px] border px-3 py-2 text-left transition-all duration-200 ${
                         active
-                          ? "border-emerald-500 bg-emerald-600/10"
-                          : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600"
+                          ? "border-emerald-500/50 bg-emerald-600/10 shadow-[0_0_8px_rgba(34,197,94,0.08)]"
+                          : "border-emerald-900/20 bg-slate-800/30 hover:border-emerald-700/40"
                       }`}
                     >
-                      <div className={`text-xs font-medium ${active ? "text-emerald-400" : "text-slate-300"}`}>{t(`preset.${m.id}.label`)}</div>
+                      <div className={`text-xs font-medium ${active ? "text-emerald-300" : "text-slate-300"}`}>{t(`preset.${m.id}.label`)}</div>
                       <div className="mt-0.5 text-[10px] text-slate-500">{t(`preset.${m.id}.desc`)}</div>
                     </button>
                   );
@@ -266,14 +258,14 @@ export default function Settings() {
 
           {/* ── Ollama specific: model name text input ── */}
           {provider === "ollama" && (
-            <div className="mt-4 border-t border-slate-800 pt-4">
+            <div className="mt-4 border-t border-emerald-900/20 pt-4">
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">{t("settings.ollama_model_name")}</label>
               <input
                 type="text"
                 value={settings?.ollama_model ?? ""}
                 onChange={(e) => update("ollama_model", e.target.value)}
                 placeholder={t("settings.ollama_model_placeholder")}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
+                className="w-full rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-3 py-2 text-sm text-white backdrop-blur-sm placeholder:text-slate-600 focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)] focus:outline-none"
               />
             </div>
           )}
@@ -284,7 +276,7 @@ export default function Settings() {
       <motion.div variants={fadeUp} transition={{ duration: 0.3 }}>
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex w-full items-center justify-between rounded-xl border border-slate-800 bg-slate-900/50 px-5 py-3 text-sm font-medium text-slate-400 transition hover:border-slate-700 hover:text-slate-300"
+          className="flex w-full items-center justify-between rounded-[6px] border border-emerald-900/30 bg-slate-900/30 px-5 py-3 text-sm font-medium text-slate-500 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/40 hover:text-emerald-300 hover:shadow-[0_0_8px_rgba(34,197,94,0.06)]"
         >
           <span>{t("settings.advanced")}</span>
           <svg className={`h-4 w-4 transition ${showAdvanced ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -304,7 +296,7 @@ export default function Settings() {
                 step="0.1"
                 value={settings?.temperature ?? 0.2}
                 onChange={(e) => update("temperature", parseFloat(e.target.value))}
-                className="w-full accent-emerald-500"
+                className="w-full range-cyber"
               />
               <div className="mt-1 flex justify-between text-[11px] text-slate-600">
                 <span>{t("settings.temperature_precise")}</span>
@@ -323,7 +315,7 @@ export default function Settings() {
                 step={64}
                 value={settings?.max_tokens ?? 4096}
                 onChange={(e) => update("max_tokens", parseInt(e.target.value) || 4096)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                className="w-full rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-3 py-2 text-sm text-white backdrop-blur-sm focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)] focus:outline-none"
               />
             </Card>
 
@@ -335,7 +327,7 @@ export default function Settings() {
                   type="text"
                   value={settings?.ollama_base_url ?? "http://localhost:11434"}
                   onChange={(e) => update("ollama_base_url", e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                  className="w-full rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-3 py-2 text-sm text-white backdrop-blur-sm focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)] focus:outline-none"
                 />
               </Card>
             )}
@@ -361,7 +353,7 @@ export default function Settings() {
                       step={step}
                       value={settings?.[key] ?? 0}
                       onChange={(e) => update(key, parseInt(e.target.value) || 0)}
-                      className="w-full rounded-lg border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-2 py-1.5 text-xs text-white backdrop-blur-sm focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)] focus:outline-none"
                     />
                   </div>
                 ))}
@@ -380,10 +372,10 @@ export default function Settings() {
               <button
                 key={lang}
                 onClick={() => setPendingLanguage(lang)}
-                className={`rounded-lg border px-5 py-2.5 text-sm font-medium transition ${
+                className={`rounded-[6px] border px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                   pendingLanguage === lang
-                    ? "border-emerald-500 bg-emerald-600 text-white"
-                    : "border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500"
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 shadow-[0_0_12px_rgba(34,197,94,0.08)]"
+                    : "border-emerald-900/30 bg-slate-800/60 text-slate-300 hover:border-emerald-700/50 hover:bg-slate-700/40"
                 }`}
               >
                 {t(`lang.${lang}`)}

@@ -45,7 +45,7 @@ const messageVariants = {
 
 function UserIcon() {
   return (
-    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">
+    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-emerald-500 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(34,197,94,0.15)]">
       U
     </div>
   );
@@ -66,7 +66,7 @@ function ToolCallCard({ call }: { call: ToolCallEntry }) {
   const label = call.tool === "read_file" ? `Read ${args.path ?? ""}` : call.tool === "search_code" ? `Search "${args.query ?? ""}"` : call.tool === "list_files" ? `List ${args.path ?? ""}` : call.tool === "get_project_structure" ? "Project structure" : call.tool;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-700/50 bg-slate-800/30 text-xs">
+    <div className="overflow-hidden rounded-[6px] border border-emerald-900/20 bg-slate-800/30 text-xs">
       <button
         onClick={() => setOpen(!open)}
         className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition hover:bg-slate-700/30"
@@ -308,14 +308,14 @@ export default function Chat() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={handleNewSession}
-                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-emerald-400"
+                  className="rounded-[6px] p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-emerald-300"
                   title={t("chat.new_session")}
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 </button>
-                <Drawer.Close className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white">
+                <Drawer.Close className="rounded-[6px] p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white">
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -331,7 +331,7 @@ export default function Chat() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t("chat.search_sessions_placeholder")}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 py-1.5 pl-8 pr-2 text-xs text-white outline-none placeholder:text-slate-500 focus:border-emerald-500"
+                className="w-full rounded-[6px] border border-emerald-900/30 bg-slate-800/60 py-1.5 pl-8 pr-2 text-xs text-white outline-none backdrop-blur-sm placeholder-slate-600 focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)]"
               />
             </div>
             <Drawer.ScrollArea className="flex-1 space-y-1 overflow-y-auto px-3 pb-3">
@@ -350,9 +350,9 @@ export default function Chat() {
                 ? searchResults.map((r) => (
                     <div
                       key={r.session.id}
-                      className={`cursor-pointer rounded-lg px-2 py-1.5 text-xs transition ${
+                      className={`cursor-pointer rounded-[6px] px-2 py-1.5 text-xs transition ${
                         activeSession === r.session.id
-                          ? "bg-emerald-600/20 text-emerald-300"
+                          ? "bg-emerald-600/15 text-emerald-300"
                           : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                       }`}
                       onClick={() => {
@@ -370,9 +370,9 @@ export default function Chat() {
                 : sessions.map((s) => (
                     <div
                       key={s.id}
-                      className={`group flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 text-xs transition ${
+                      className={`group flex cursor-pointer items-center justify-between rounded-[6px] px-2 py-1.5 text-xs transition ${
                         activeSession === s.id
-                          ? "bg-emerald-600/20 text-emerald-300"
+                          ? "bg-emerald-600/15 text-emerald-300"
                           : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                       }`}
                       onClick={() => switchSession(s.id)}
@@ -402,7 +402,7 @@ export default function Chat() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSessionsOpen(true)}
-              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+              className="rounded-[6px] p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
               title={t("chat.sessions")}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -433,7 +433,7 @@ export default function Chat() {
                 toast(t("chat.error_clearing"), "error");
               }
             }}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition hover:border-red-800 hover:text-red-400"
+            className="rounded-[6px] border border-emerald-900/30 px-3 py-1.5 text-xs text-slate-400 backdrop-blur-sm transition-all duration-200 hover:border-red-800/50 hover:text-red-400"
           >
             {t("chat.clear")}
           </button>
@@ -441,7 +441,7 @@ export default function Chat() {
 
         <div
           ref={listRef}
-          className="flex-1 space-y-4 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/50 p-4"
+          className="flex-1 space-y-4 overflow-y-auto rounded-[6px] border border-emerald-900/20 bg-slate-900/30 p-4 backdrop-blur-sm"
         >
           {messages.length === 0 && (
             <div className="flex h-full items-center justify-center">
@@ -465,10 +465,10 @@ export default function Chat() {
               >
                 {msg.role === "user" ? <UserIcon /> : <BotIcon />}
                 <div
-                  className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
+                  className={`max-w-[75%] rounded-[6px] px-4 py-2.5 ${
                     msg.role === "user"
-                      ? "bg-emerald-600/20 text-white"
-                      : "border border-slate-700/50 bg-slate-800/50 text-slate-200"
+                      ? "bg-emerald-600/15 text-white"
+                      : "border border-emerald-900/20 bg-slate-800/50 text-slate-200"
                   }`}
                 >
                   {msg.role === "assistant" ? (
@@ -515,7 +515,7 @@ export default function Chat() {
           {loading && !typingId && (
             <div className="flex gap-3">
               <BotIcon />
-              <div className="w-full max-w-md rounded-2xl border border-slate-700/50 bg-slate-800/50 p-4">
+              <div className="w-full max-w-md rounded-[6px] border border-slate-700/50 bg-slate-800/50 p-4">
                 {currentPath ? (
                   <div className="flex items-center gap-2 text-sm text-slate-400">
                     <svg className="h-4 w-4 animate-spin text-emerald-400" fill="none" viewBox="0 0 24 24">
@@ -541,7 +541,7 @@ export default function Chat() {
             placeholder={t("chat.placeholder")}
             disabled={loading}
             rows={1}
-            className="min-h-[48px] flex-1 resize-none rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-500"
+            className="min-h-[48px] flex-1 resize-none rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-4 py-3 text-sm text-white outline-none backdrop-blur-sm transition placeholder:text-slate-600 focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)]"
           />
           <Button
             onClick={handleSend}

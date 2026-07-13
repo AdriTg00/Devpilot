@@ -14,7 +14,7 @@ const SKELETON_LINES = [
 
 export function CodeSkeleton() {
   return (
-    <div className="animate-pulse space-y-3 rounded-lg border border-slate-700 bg-slate-900/50 p-4 font-mono text-xs">
+    <div className="animate-pulse space-y-3 rounded-lg border border-emerald-900/20 bg-slate-900/50 p-4 font-mono text-xs">
       {SKELETON_LINES.map((line, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="w-6 text-right text-slate-600">{i + 1}</span>

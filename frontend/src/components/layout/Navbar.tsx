@@ -14,13 +14,14 @@ export default function Navbar() {
   const { t } = useLanguage();
 
   return (
-    <header className="relative overflow-hidden border-b border-slate-800 bg-slate-900">
+    <header className="relative overflow-hidden border-b border-emerald-900/30 bg-slate-900/60 backdrop-blur-md">
+      <div className="pointer-events-none absolute inset-0 tech-grid" />
       <img
         src={logo}
         alt=""
         aria-hidden="true"
         className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-        style={{ width: "150px", opacity: 1 }}
+        style={{ width: "150px", opacity: 0.6 }}
       />
       <div className="relative flex h-16 items-center justify-between px-4 md:px-8">
         <div className="flex items-center gap-3">
@@ -39,8 +40,8 @@ export default function Navbar() {
             className={({ isActive }: NavLinkRenderProps) =>
               `whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                 isActive
-                  ? "border-emerald-500 text-emerald-400"
-                  : "border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600"
+              ? "border-emerald-400 text-emerald-300"
+              : "border-transparent text-slate-500 hover:text-slate-200 hover:border-emerald-700/50"
               }`
             }
             data-cuelume-hover="tick"

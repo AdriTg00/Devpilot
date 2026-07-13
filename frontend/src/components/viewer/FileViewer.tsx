@@ -274,7 +274,7 @@ export default function FileViewer() {
         <div className="flex shrink-0 gap-2">
           <button
             onClick={() => { setSearchActive(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400"
+            className="inline-flex items-center gap-2 rounded-[6px] border border-emerald-900/30 px-4 py-2 text-sm text-slate-400 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/50 hover:text-emerald-300 hover:shadow-[0_0_8px_rgba(34,197,94,0.06)]"
           >
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -284,7 +284,7 @@ export default function FileViewer() {
           <button
             onClick={explainSelectedFile}
             disabled={explaining}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white transition hover:bg-emerald-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-[6px] border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 backdrop-blur-sm shadow-[0_0_12px_rgba(34,197,94,0.08)] transition-all duration-200 hover:bg-emerald-500/20 hover:border-emerald-400/60 hover:text-emerald-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.18)] disabled:opacity-50"
           >
             {explaining && <Spinner size="sm" />}
             {explaining ? t("viewer.generating") : t("viewer.explain")}
@@ -305,7 +305,7 @@ export default function FileViewer() {
                   onChange={(e) => { setSearchQuery(e.target.value); setMatchIndex(0); }}
                   onKeyDown={handleSearchKeydown}
                   placeholder={t("viewer.search_placeholder")}
-                  className="w-48 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white outline-none placeholder:text-slate-500 focus:border-emerald-500"
+                  className="w-48 rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-3 py-1.5 text-xs text-white outline-none backdrop-blur-sm placeholder-slate-600 focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)]"
                 />
                 <span className="text-[11px] text-slate-500">
                   {matches.length > 0 ? `${matchIndex + 1}/${matches.length}` : "0/0"}
@@ -341,7 +341,7 @@ export default function FileViewer() {
           </div>
           <div
             ref={scrollRef}
-            className="max-h-[600px] flex-1 overflow-auto rounded-lg bg-slate-950 p-4"
+            className="max-h-[600px] flex-1 overflow-auto rounded-[6px] bg-slate-950 p-4"
           >
             {fileLoading ? (
               <div className="flex h-full items-center justify-center">
@@ -390,7 +390,7 @@ export default function FileViewer() {
               </span>
             )}
           </div>
-          <div className="max-h-[600px] flex-1 overflow-auto rounded-lg border border-slate-700 bg-slate-900 p-4">
+          <div className="max-h-[600px] flex-1 overflow-auto rounded-[6px] border border-slate-700 bg-slate-900 p-4">
             {fileExplanation || explaining ? (
               <TypingEffect text={fileExplanation} loading={explaining} />
             ) : (

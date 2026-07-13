@@ -41,7 +41,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               </pre>
               <button
                 onClick={() => window.location.reload()}
-                className="rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
+                className="rounded-[6px] border border-emerald-500/40 bg-emerald-500/10 px-6 py-2.5 text-sm font-semibold text-emerald-300 backdrop-blur-sm transition-all duration-200 hover:bg-emerald-500/20 hover:border-emerald-400/60 hover:text-emerald-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.18)]"
               >
                 Reload Page
               </button>

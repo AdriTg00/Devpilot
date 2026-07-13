@@ -102,7 +102,7 @@ export default function DiffViewer({ original, modified }: Props) {
           <span className="text-slate-500 italic">No changes detected</span>
         )}
       </div>
-      <div className="max-h-72 overflow-auto rounded-lg bg-slate-950 font-mono text-[11px] leading-[1.6]">
+      <div className="max-h-72 overflow-auto rounded-lg border border-emerald-900/20 bg-slate-950/80 font-mono text-[11px] leading-[1.6]">
         {entries.map((entry, idx) =>
           entry.kind === "gap" ? (
             <div key={idx} className="select-none px-4 py-0.5 text-slate-600 italic">

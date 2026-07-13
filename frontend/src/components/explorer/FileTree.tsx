@@ -26,8 +26,8 @@ function FileNode({ nodes, selectedFile, selectFile, depth = 0 }: TreeProps) {
             onClick={() => selectFile({ path: node.path, name: node.name })}
             className={`block w-full rounded-lg px-3 py-1.5 text-left text-sm transition ${
               selectedFile?.path === node.path
-                ? "bg-emerald-600 text-white"
-                : "hover:bg-slate-800 text-slate-300"
+                ? "bg-emerald-600/20 text-emerald-300 shadow-[0_0_8px_rgba(34,197,94,0.1)]"
+                : "hover:bg-slate-800/40 text-slate-300"
             }`}
             style={{ paddingLeft: `${12 + depth * 16}px` }}
           >

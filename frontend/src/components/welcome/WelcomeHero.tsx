@@ -40,8 +40,8 @@ export default function WelcomeHero({ onGetStarted }: Props) {
   if (!mounted) return null;
 
   return (
-    <motion.div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950"
+      <motion.div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#05080f]"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -50,7 +50,7 @@ export default function WelcomeHero({ onGetStarted }: Props) {
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background: "radial-gradient(ellipse at center 40%, rgba(16, 185, 129, 0.08) 0%, transparent 60%)",
+          background: "radial-gradient(ellipse at center 40%, rgba(6, 182, 212, 0.08) 0%, transparent 60%)",
         }}
       />
       <motion.div className="flex flex-col items-center gap-12">
@@ -72,7 +72,7 @@ export default function WelcomeHero({ onGetStarted }: Props) {
             }}
             style={{
               background:
-                "radial-gradient(circle, rgba(16,185,129,0.4) 0%, rgba(16,185,129,0.15) 30%, rgba(16,185,129,0.05) 50%, transparent 70%)",
+                "radial-gradient(circle, rgba(34,197,94,0.4) 0%, rgba(34,197,94,0.15) 30%, rgba(34,197,94,0.05) 50%, transparent 70%)",
               filter: "blur(60px)",
             }}
           />
@@ -90,11 +90,11 @@ export default function WelcomeHero({ onGetStarted }: Props) {
             }}
             style={{
               background:
-                "radial-gradient(circle, rgba(16,185,129,0.2) 0%, rgba(16,185,129,0.08) 30%, transparent 60%)",
+                "radial-gradient(circle, rgba(34,197,94,0.2) 0%, rgba(34,197,94,0.08) 30%, transparent 60%)",
               filter: "blur(80px)",
             }}
           />
-          <div className="relative rounded-2xl border border-emerald-500/40 bg-slate-950/60 p-1 shadow-[0_0_20px_rgba(16,185,129,0.25),0_0_60px_rgba(16,185,129,0.1),inset_0_0_20px_rgba(16,185,129,0.05)]">
+          <div className="relative rounded-2xl border border-emerald-500/40 bg-slate-950/60 p-1 shadow-[0_0_20px_rgba(34,197,94,0.25),0_0_60px_rgba(34,197,94,0.1),inset_0_0_20px_rgba(34,197,94,0.05)]">
             <div
               className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
               style={{ mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)", maskComposite: "exclude", WebkitMaskComposite: "xor" }}
@@ -104,7 +104,7 @@ export default function WelcomeHero({ onGetStarted }: Props) {
                 animate={{ rotate: [0, 360] }}
                 transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
                 style={{
-                  background: "conic-gradient(from 0deg, transparent 0%, rgba(16,185,129,0.6) 25%, transparent 50%, rgba(16,185,129,0.6) 75%, transparent 100%)",
+                  background: "conic-gradient(from 0deg, transparent 0%, rgba(34,197,94,0.6) 25%, transparent 50%, rgba(34,197,94,0.6) 75%, transparent 100%)",
                 }}
               />
             </div>
@@ -139,7 +139,7 @@ export default function WelcomeHero({ onGetStarted }: Props) {
         <motion.div variants={fadeUp} transition={{ duration: 0.6, ease: "easeOut" }}>
           <button
             onClick={onGetStarted}
-            className="group relative rounded-xl bg-emerald-500 px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-emerald-500/30 active:translate-y-0"
+            className="group relative rounded-[6px] border border-emerald-500/40 bg-emerald-500/10 px-8 py-3.5 text-base font-semibold text-emerald-300 backdrop-blur-sm shadow-[0_0_20px_rgba(34,197,94,0.15)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-500/20 hover:border-emerald-400/60 hover:text-emerald-200 hover:shadow-[0_0_30px_rgba(34,197,94,0.25)] active:translate-y-0"
           >
             Get Started
           </button>

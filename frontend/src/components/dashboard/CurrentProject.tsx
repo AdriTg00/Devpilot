@@ -41,7 +41,7 @@ export default function CurrentProject() {
                     <button
                         onClick={handleResume}
                         disabled={resuming || loading}
-                        className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                        className="shrink-0 rounded-[6px] border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 backdrop-blur-sm shadow-[0_0_12px_rgba(34,197,94,0.08)] transition-all duration-200 hover:bg-emerald-500/20 hover:border-emerald-400/60 hover:text-emerald-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.18)] disabled:opacity-50"
                     >
                         {resuming ? t("current_project.opening") : t("current_project.resume")}
                     </button>
@@ -95,11 +95,11 @@ export default function CurrentProject() {
                         {analysis.projectPath}
                     </p>
                     {shareLink && (
-                        <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-3 py-2">
+                        <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-900/10 px-3 py-2">
                             <span className="truncate text-xs text-emerald-300">{shareLink}</span>
                                 <button
                                     onClick={copyLink}
-                                    className="shrink-0 rounded-md bg-emerald-700 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-600"
+                                    className="shrink-0 rounded-[6px] bg-emerald-700/30 px-2 py-1 text-[10px] font-medium text-emerald-300 backdrop-blur-sm transition-all duration-200 hover:bg-emerald-600/40"
                                 >
                                     {t("current_project.copy")}
                                 </button>
@@ -110,21 +110,21 @@ export default function CurrentProject() {
                     <button
                         onClick={handleShare}
                         disabled={sharing}
-                        className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400 disabled:opacity-50"
+                        className="rounded-[6px] border border-emerald-900/30 bg-slate-800/40 px-3 py-1.5 text-xs text-slate-400 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/50 hover:text-emerald-300 hover:bg-slate-700/40 disabled:opacity-50"
                     >
                         {sharing ? "..." : t("current_project.share")}
                     </button>
                     <button
                         onClick={handleExport}
                         disabled={exporting}
-                        className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition hover:border-emerald-700 hover:text-emerald-400 disabled:opacity-50"
+                        className="rounded-[6px] border border-emerald-900/30 bg-slate-800/40 px-3 py-1.5 text-xs text-slate-400 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/50 hover:text-emerald-300 hover:bg-slate-700/40 disabled:opacity-50"
                     >
                         {exporting ? "..." : t("current_project.export")}
                     </button>
                     <button
                         onClick={closeProject}
                         disabled={closing}
-                        className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition hover:border-red-800 hover:text-red-400 disabled:opacity-50"
+                        className="rounded-[6px] border border-emerald-900/30 bg-slate-800/40 px-3 py-1.5 text-xs text-slate-400 backdrop-blur-sm transition-all duration-200 hover:border-red-800/50 hover:text-red-400 hover:bg-red-900/20 disabled:opacity-50"
                     >
                         {closing ? "..." : t("current_project.close")}
                     </button>

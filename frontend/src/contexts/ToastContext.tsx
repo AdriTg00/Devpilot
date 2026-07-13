@@ -36,9 +36,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const styles: Record<ToastType, string> = {
-    success: "border-emerald-600 bg-emerald-950 text-emerald-300",
-    error: "border-red-600 bg-red-950 text-red-300",
-    info: "border-slate-600 bg-slate-900 text-slate-300",
+    success: "border-emerald-500/40 bg-slate-900/80 text-emerald-300 backdrop-blur-md shadow-[0_0_20px_rgba(34,197,94,0.1)]",
+    error: "border-red-500/40 bg-slate-900/80 text-red-300 backdrop-blur-md shadow-[0_0_20px_rgba(239,68,68,0.1)]",
+    info: "border-slate-700/40 bg-slate-900/80 text-slate-300 backdrop-blur-md",
   };
 
   return (

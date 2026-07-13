@@ -13,7 +13,7 @@ export default function RecentProjects() {
         {recentProjects.length > 0 && (
           <button
             onClick={clearRecentProjects}
-            className="rounded-lg px-2 py-1 text-xs text-slate-500 transition hover:text-red-400"
+            className="rounded-[6px] px-2 py-1 text-xs text-slate-600 transition-all duration-200 hover:text-red-400"
           >
             {t("recent.clear")}
           </button>
@@ -30,7 +30,7 @@ export default function RecentProjects() {
             <li key={path}>
               <button
                 onClick={() => setCurrentPath(path)}
-                className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                className="w-full rounded-[6px] px-3 py-2 text-left text-sm text-slate-400 transition-all duration-200 hover:bg-slate-800/40 hover:text-emerald-300 hover:shadow-[0_0_8px_rgba(34,197,94,0.04)]"
               >
                 {path}
               </button>

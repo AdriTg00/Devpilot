@@ -64,13 +64,13 @@ export default function RAGStatus() {
           <button
             onClick={handleRebuild}
             disabled={rebuilding}
-            className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-slate-700 disabled:opacity-50"
+            className="rounded-[6px] border border-emerald-900/30 bg-slate-800/40 px-3 py-1.5 text-xs text-slate-300 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/50 hover:bg-slate-700/40 disabled:opacity-50"
           >
             {rebuilding ? "..." : t("rag.rebuild")}
           </button>
           <button
             onClick={handleClear}
-            className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-red-900/50"
+            className="rounded-[6px] border border-emerald-900/30 bg-slate-800/40 px-3 py-1.5 text-xs text-slate-300 backdrop-blur-sm transition-all duration-200 hover:border-red-800/50 hover:bg-red-900/20"
           >
             {t("rag.clear")}
           </button>

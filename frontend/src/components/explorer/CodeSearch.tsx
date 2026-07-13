@@ -59,7 +59,7 @@ export default function CodeSearch() {
           onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={`${t("explorer.search_code")} (Ctrl+Shift+F)`}
-          className="w-full rounded-lg border border-slate-700 bg-slate-800 pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+          className="w-full rounded-lg border border-emerald-900/30 bg-slate-800/60 pl-9 pr-3 py-2 text-sm text-white backdrop-blur-sm placeholder-slate-600 focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)] focus:outline-none"
         />
         <svg
           className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"

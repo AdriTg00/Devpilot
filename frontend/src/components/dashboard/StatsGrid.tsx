@@ -36,10 +36,10 @@ function LanguageBar({ byType, t: _t }: { byType: Record<string, { lines: number
 
   return (
     <Card>
-      <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-400">
+      <p className="mb-3 text-xs font-medium uppercase tracking-wider text-emerald-400/60">
         {_t("stats.lang_distribution")}
       </p>
-      <div className="flex h-3 overflow-hidden rounded-full bg-slate-700">
+      <div className="flex h-3 overflow-hidden rounded-full bg-slate-800/60">
         {entries.map(([ext, stats]) => {
           const pct = (stats.lines / total) * 100;
           if (pct < 1) return null;
@@ -134,22 +134,22 @@ export default function StatsGrid() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
         <Card>
-          <p className="text-slate-400">{t("stats.total_files")}</p>
-          <h2 className="mt-3 text-3xl font-bold">{analysis?.files ?? dash ?? 0}</h2>
+          <p className="text-xs font-medium uppercase tracking-wider text-emerald-400/60">{t("stats.total_files")}</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight text-white">{analysis?.files ?? dash ?? 0}</h2>
         </Card>
         <Card>
-          <p className="text-slate-400">{t("stats.lines")}</p>
-          <h2 className="mt-3 text-3xl font-bold">
+          <p className="text-xs font-medium uppercase tracking-wider text-emerald-400/60">{t("stats.lines")}</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight text-white">
             {analysis ? analysis.lines.toLocaleString() : dash ?? 0}
           </h2>
         </Card>
         <Card>
-          <p className="text-slate-400">{t("stats.functions")}</p>
-          <h2 className="mt-3 text-3xl font-bold">{analysis?.functions ?? dash ?? 0}</h2>
+          <p className="text-xs font-medium uppercase tracking-wider text-emerald-400/60">{t("stats.functions")}</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight text-white">{analysis?.functions ?? dash ?? 0}</h2>
         </Card>
         <Card>
-          <p className="text-slate-400">{t("stats.classes")}</p>
-          <h2 className="mt-3 text-3xl font-bold">{analysis?.classes ?? dash ?? 0}</h2>
+          <p className="text-xs font-medium uppercase tracking-wider text-emerald-400/60">{t("stats.classes")}</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight text-white">{analysis?.classes ?? dash ?? 0}</h2>
         </Card>
       </div>
 

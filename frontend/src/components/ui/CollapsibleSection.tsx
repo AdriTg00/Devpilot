@@ -19,7 +19,7 @@ export default function CollapsibleSection({
       <button
         data-cuelume-toggle="toggle"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 text-left text-sm font-semibold tracking-wide text-slate-400 transition-colors hover:text-white"
+        className="flex w-full items-center gap-2 text-left text-sm font-semibold tracking-wide text-slate-500 transition-colors hover:text-emerald-300"
       >
         <motion.svg
           animate={{ rotate: open ? 90 : 0 }}

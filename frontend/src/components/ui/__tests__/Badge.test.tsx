@@ -11,7 +11,7 @@ describe("Badge", () => {
   it("applies default variant", () => {
     render(<Badge>Default</Badge>);
     const el = screen.getByText("Default");
-    expect(el.className).toContain("bg-slate-700");
+    expect(el.className).toContain("bg-slate-800");
   });
 
   it("applies emerald variant", () => {

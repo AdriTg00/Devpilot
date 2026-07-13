@@ -734,9 +734,12 @@ class LLMService:
             logger.info("Using Groq provider")
             return GroqProvider(groq_key, model=settings.groq_model, temperature=settings.temperature)
 
-        if settings.provider in ("ollama", "auto") or True:
+        if settings.provider in ("ollama", "auto"):
             logger.info("Using Ollama provider")
             return OllamaProvider(model=settings.ollama_model, temperature=settings.temperature)
+
+        logger.warning("Unknown provider '%s', falling back to Ollama", settings.provider)
+        return OllamaProvider(model=settings.ollama_model, temperature=settings.temperature)
 
     def reinit(self):
         self.provider = self._detect_provider()

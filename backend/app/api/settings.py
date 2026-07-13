@@ -37,6 +37,7 @@ def get_settings(db: Session = Depends(get_db)):
 @router.put("")
 def update_settings(updates: Settings, db: Session = Depends(get_db)):
     saved = settings_service.update(updates.model_dump(), db=db)
+    db.commit()
     _reinit_llm_service()
     warnings = _check_warnings(saved)
     return {"settings": saved.model_dump(), "warnings": warnings}

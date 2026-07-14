@@ -33,11 +33,32 @@ const PROVIDERS: ProviderDef[] = [
   { id: "auto", free: true, local: false, needsKey: false },
 ];
 
-const MODEL_PRESETS = [
-  { id: "fast" },
-  { id: "balanced" },
-  { id: "code" },
-];
+const PROVIDER_MODELS: Record<string, { id: string; label: string }[]> = {
+  openai: [
+    { id: "gpt-4o-mini", label: "GPT-4o Mini" },
+    { id: "gpt-4o", label: "GPT-4o" },
+    { id: "gpt-4.1", label: "GPT-4.1" },
+    { id: "gpt-4.1-nano", label: "GPT-4.1 Nano" },
+    { id: "o3-mini", label: "o3-mini" },
+  ],
+  anthropic: [
+    { id: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku" },
+    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4" },
+    { id: "claude-3-opus-latest", label: "Claude 3 Opus" },
+  ],
+  google: [
+    { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+    { id: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
+    { id: "gemini-2.5-pro-preview-03-25", label: "Gemini 2.5 Pro" },
+  ],
+  groq: [
+    { id: "llama-3.1-8b-instant", label: "Llama 3.1 8B" },
+    { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
+    { id: "llama-3.3-70b-specdec", label: "Llama 3.3 70B (SpecDec)" },
+    { id: "mixtral-8x7b-32768", label: "Mixtral 8x7B" },
+    { id: "gemma2-9b-it", label: "Gemma 2 9B" },
+  ],
+};
 
 export default function Settings() {
   const { language, setLanguage, t } = useLanguage();
@@ -94,19 +115,13 @@ export default function Settings() {
     setTesting(providerId);
     try {
       const result = await testProviderConnection(providerId, apiKey);
-      if (!result.success) {
-        setTestResults((prev) => ({ ...prev, [providerId]: result }));
-        toast(result.message, "error");
-      } else {
+      setTestResults((prev) => ({ ...prev, [providerId]: result }));
+      if (result.success) {
         toast(result.message, "success");
         const updated = { ...settings, provider: providerId };
         setSettings(updated);
-        setTestResults((prev) => ({ ...prev, [providerId]: result }));
-        const saveResult = await updateSettings(updated);
-        setSettings(saveResult.settings);
-        for (const w of saveResult.warnings) {
-          toast(w, "info");
-        }
+      } else {
+        toast(result.message, "error");
       }
     } catch {
       const fail = { success: false, message: t("settings.test_connection_failed") };
@@ -230,28 +245,46 @@ export default function Settings() {
             </div>
           ))}
 
-          {/* ── Model preset (only for cloud providers) ── */}
+          {/* ── Model selection (per provider) ── */}
           {isCloud && (
             <div className="mt-4 border-t border-emerald-900/20 pt-4">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">{t("settings.model_quality")}</p>
-              <div className="flex gap-2">
-                {MODEL_PRESETS.map((m) => {
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">{t("settings.model")}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(PROVIDER_MODELS[provider] ?? []).map((m) => {
                   const active = settings?.provider_model === m.id;
                   return (
                     <button
                       key={m.id}
                       onClick={() => update("provider_model", m.id)}
-                      className={`flex-1 rounded-[6px] border px-3 py-2 text-left transition-all duration-200 ${
+                      className={`rounded-[6px] border px-3 py-2 text-left transition-all duration-200 ${
                         active
                           ? "border-emerald-500/50 bg-emerald-600/10 shadow-[0_0_8px_rgba(34,197,94,0.08)]"
                           : "border-emerald-900/20 bg-slate-800/30 hover:border-emerald-700/40"
                       }`}
                     >
-                      <div className={`text-xs font-medium ${active ? "text-emerald-300" : "text-slate-300"}`}>{t(`preset.${m.id}.label`)}</div>
-                      <div className="mt-0.5 text-[10px] text-slate-500">{t(`preset.${m.id}.desc`)}</div>
+                      <div className={`text-xs font-medium ${active ? "text-emerald-300" : "text-slate-300"}`}>{m.label}</div>
+                      <div className="mt-0.5 text-[10px] font-mono text-slate-500">{m.id}</div>
                     </button>
                   );
                 })}
+              </div>
+              <div className="mt-3">
+                <p className="mb-1 text-[11px] text-slate-500">{t("settings.custom_model")}</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={
+                      settings?.provider_model && !(PROVIDER_MODELS[provider] ?? []).some((m) => m.id === settings.provider_model)
+                        ? settings.provider_model
+                        : ""
+                    }
+                    onChange={(e) => {
+                      if (e.target.value) update("provider_model", e.target.value);
+                    }}
+                    placeholder={t("settings.custom_model_placeholder")}
+                    className="flex-1 rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-3 py-2 text-xs text-white backdrop-blur-sm placeholder:text-slate-600 focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)] focus:outline-none font-mono"
+                  />
+                </div>
               </div>
             </div>
           )}

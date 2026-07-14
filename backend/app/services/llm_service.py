@@ -32,6 +32,30 @@ GOOGLE_MODELS = {
 }
 
 
+def _resolve_model(preset_map: dict[str, str], model: str | None, env_var: str, default: str) -> str:
+    """Resolve model: if model is a known preset key, map it; otherwise use model as-is."""
+    val = model or os.getenv(env_var, default)
+    return preset_map.get(val, val)
+
+
+def resolve_model_name(settings) -> str:
+    """Resolve the active model name from settings without instantiating a provider."""
+    provider = settings.provider
+    if provider == "ollama":
+        return settings.ollama_model or os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
+    if provider == "groq":
+        model_key = settings.provider_model or settings.groq_model or "llama-3.1-8b-instant"
+        return _resolve_model(GROQ_MODELS, model_key, "GROQ_MODEL", "llama-3.1-8b-instant")
+    if provider == "openai":
+        return _resolve_model(OPENAI_MODELS, settings.provider_model, "OPENAI_MODEL", "gpt-4o-mini")
+    if provider == "anthropic":
+        return _resolve_model(ANTHROPIC_MODELS, settings.provider_model, "ANTHROPIC_MODEL", "claude-3-5-haiku-20241022")
+    if provider == "google":
+        return _resolve_model(GOOGLE_MODELS, settings.provider_model, "GOOGLE_MODEL", "gemini-2.0-flash")
+
+    return settings.provider_model or "qwen2.5-coder:7b"
+
+
 class LLMProvider:
     def ask(self, prompt: str, temperature: float | None = None) -> str:
         raise NotImplementedError
@@ -236,9 +260,7 @@ class OpenAIProvider(LLMProvider):
         from openai import APIStatusError, OpenAI
         self._client = OpenAI(api_key=api_key)
         self._APIStatusError = APIStatusError
-        model_key = model or os.getenv("OPENAI_MODEL", "fast")
-        self.model = OPENAI_MODELS.get(model_key, OPENAI_MODELS["fast"])
-        self._model_key = model_key
+        self.model = _resolve_model(OPENAI_MODELS, model, "OPENAI_MODEL", "gpt-4o-mini")
         self.temperature = temperature
 
     def _fallback(self, messages: list, temperature: float | None = None) -> str:
@@ -360,8 +382,7 @@ class OpenAIProvider(LLMProvider):
         return True
 
     def update_model(self, model: str):
-        self._model_key = model
-        self.model = OPENAI_MODELS.get(model, OPENAI_MODELS["fast"])
+        self.model = _resolve_model(OPENAI_MODELS, model, "OPENAI_MODEL", self.model)
 
     def update_temperature(self, temperature: float):
         self.temperature = temperature
@@ -374,9 +395,7 @@ class AnthropicProvider(LLMProvider):
         from anthropic import Anthropic, APIStatusError
         self._client = Anthropic(api_key=api_key)
         self._APIStatusError = APIStatusError
-        model_key = model or os.getenv("ANTHROPIC_MODEL", "balanced")
-        self.model = ANTHROPIC_MODELS.get(model_key, ANTHROPIC_MODELS["balanced"])
-        self._model_key = model_key
+        self.model = _resolve_model(ANTHROPIC_MODELS, model, "ANTHROPIC_MODEL", "claude-3-5-haiku-20241022")
         self.temperature = temperature
 
     def _call(self, system: str, messages: list[dict], temperature: float | None = None) -> str:
@@ -443,8 +462,7 @@ class AnthropicProvider(LLMProvider):
         return self.model
 
     def update_model(self, model: str):
-        self._model_key = model
-        self.model = ANTHROPIC_MODELS.get(model, ANTHROPIC_MODELS["balanced"])
+        self.model = _resolve_model(ANTHROPIC_MODELS, model, "ANTHROPIC_MODEL", self.model)
 
     def update_temperature(self, temperature: float):
         self.temperature = temperature
@@ -456,9 +474,7 @@ class GoogleProvider(LLMProvider):
     def __init__(self, api_key: str, model: str | None = None, temperature: float = 0.2):
         from google import genai
         self._client = genai.Client(api_key=api_key)
-        model_key = model or os.getenv("GOOGLE_MODEL", "fast")
-        self.model = GOOGLE_MODELS.get(model_key, GOOGLE_MODELS["fast"])
-        self._model_key = model_key
+        self.model = _resolve_model(GOOGLE_MODELS, model, "GOOGLE_MODEL", "gemini-2.0-flash")
         self.temperature = temperature
 
     def _call(self, system: str, user: str, temperature: float | None = None) -> str:
@@ -521,8 +537,7 @@ class GoogleProvider(LLMProvider):
         return self.model
 
     def update_model(self, model: str):
-        self._model_key = model
-        self.model = GOOGLE_MODELS.get(model, GOOGLE_MODELS["fast"])
+        self.model = _resolve_model(GOOGLE_MODELS, model, "GOOGLE_MODEL", self.model)
 
     def update_temperature(self, temperature: float):
         self.temperature = temperature
@@ -533,9 +548,7 @@ class GroqProvider(LLMProvider):
         from groq import APIStatusError, Groq
         self._client = Groq(api_key=api_key)
         self._APIStatusError = APIStatusError
-        model_key = model or os.getenv("GROQ_MODEL", "fast")
-        self.model = GROQ_MODELS.get(model_key, GROQ_MODELS["fast"])
-        self._model_key = model_key
+        self.model = _resolve_model(GROQ_MODELS, model, "GROQ_MODEL", "llama-3.1-8b-instant")
         self.temperature = temperature
         self._ollama = None
 
@@ -640,8 +653,7 @@ class GroqProvider(LLMProvider):
         return True
 
     def update_model(self, model: str):
-        self._model_key = model
-        self.model = GROQ_MODELS.get(model, GROQ_MODELS["fast"])
+        self.model = _resolve_model(GROQ_MODELS, model, "GROQ_MODEL", self.model)
 
     def update_temperature(self, temperature: float):
         self.temperature = temperature
@@ -731,8 +743,9 @@ class LLMService:
             return GoogleProvider(google_key, model=settings.provider_model, temperature=settings.temperature)
 
         if settings.provider == "groq" and groq_key:
+            groq_model = settings.provider_model or settings.groq_model
             logger.info("Using Groq provider")
-            return GroqProvider(groq_key, model=settings.groq_model, temperature=settings.temperature)
+            return GroqProvider(groq_key, model=groq_model, temperature=settings.temperature)
 
         if settings.provider in ("ollama", "auto"):
             logger.info("Using Ollama provider")
@@ -749,7 +762,7 @@ class LLMService:
         settings = settings_service.get()
         model_map = {
             "ollama": settings.ollama_model,
-            "groq": settings.groq_model,
+            "groq": settings.provider_model or settings.groq_model,
             "openai": settings.provider_model,
             "anthropic": settings.provider_model,
             "google": settings.provider_model,

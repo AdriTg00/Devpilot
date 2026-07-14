@@ -18,6 +18,73 @@ _KEY_MAP = {
     "groq": ("groq_api_key", "GROQ_API_KEY"),
 }
 
+_QUOTA_CACHE: dict[str, dict] = {}
+
+_TEST_MODELS = {
+    "openai": "gpt-4o-mini",
+    "anthropic": "claude-3-5-haiku-20241022",
+    "google": "gemini-2.0-flash",
+    "groq": "llama-3.1-8b-instant",
+}
+
+
+def _check_quota(provider: str, api_key: str) -> dict:
+    """Test if a provider has available quota/credits by making a tiny completion."""
+    result = {"has_quota": True, "message": "", "error": None}
+    try:
+        if provider == "openai":
+            from openai import OpenAI
+            client = OpenAI(api_key=api_key, timeout=10)
+            client.chat.completions.create(
+                model=_TEST_MODELS[provider],
+                max_tokens=1,
+                messages=[{"role": "user", "content": "hi"}],
+            )
+
+        elif provider == "anthropic":
+            from anthropic import Anthropic
+            client = Anthropic(api_key=api_key, timeout=10)
+            client.messages.create(
+                model=_TEST_MODELS[provider],
+                max_tokens=10,
+                messages=[{"role": "user", "content": "hi"}],
+            )
+
+        elif provider == "google":
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(_TEST_MODELS[provider])
+            model.generate_content("hi", generation_config={"max_output_tokens": 1})
+
+        elif provider == "groq":
+            from groq import Groq
+            client = Groq(api_key=api_key, timeout=10)
+            client.chat.completions.create(
+                model=_TEST_MODELS[provider],
+                max_tokens=1,
+                messages=[{"role": "user", "content": "hi"}],
+            )
+
+        _QUOTA_CACHE[provider] = {"has_quota": True, "message": "", "error": None}
+        return _QUOTA_CACHE[provider]
+
+    except Exception as e:
+        reason = str(e).lower()
+        if any(w in reason for w in ("quota", "credit", "insufficient", "429", "rate limit", "billing", "payment")):
+            result = {"has_quota": False, "message": f"{provider.title()}: insufficient quota or credits", "error": str(e)}
+        elif "401" in reason or "unauthorized" in reason or "api key" in reason or "invalid" in reason or "not found" in reason:
+            result = {"has_quota": False, "message": f"{provider.title()}: invalid API key", "error": str(e)}
+        else:
+            result = {"has_quota": True, "message": f"{provider.title()}: connected (quota check skipped)", "error": str(e) if str(e) else None}
+        _QUOTA_CACHE[provider] = result
+        return result
+
+
+def get_quota_status(provider: str | None = None) -> dict:
+    if provider:
+        return _QUOTA_CACHE.get(provider, {"has_quota": True, "message": f"{provider}: unknown", "error": None})
+    return dict(_QUOTA_CACHE)
+
 
 def _get_provider_key(settings: Settings, provider: str) -> str | None:
     """Get API key from settings first, then from env var."""
@@ -40,7 +107,17 @@ def update_settings(updates: Settings, db: Session = Depends(get_db)):
     db.commit()
     _reinit_llm_service()
     warnings = _check_warnings(saved)
+    provider = saved.provider
+    if provider in _KEY_MAP:
+        api_key = _get_provider_key(saved, provider)
+        if api_key:
+            _check_quota(provider, api_key)
     return {"settings": saved.model_dump(), "warnings": warnings}
+
+
+@router.get("/quota")
+def get_quota():
+    return get_quota_status()
 
 
 class TestProviderRequest(BaseModel):
@@ -58,40 +135,10 @@ def test_provider(req: TestProviderRequest):
     if req.provider not in _KEY_MAP:
         raise HTTPException(status_code=400, detail=f"Unknown provider: {req.provider}")
 
-    try:
-        if req.provider == "openai":
-            from openai import OpenAI
-            client = OpenAI(api_key=req.api_key, timeout=10)
-            client.models.list()
-
-        elif req.provider == "anthropic":
-            from anthropic import Anthropic
-            client = Anthropic(api_key=req.api_key, timeout=10)
-            client.messages.create(
-                model="claude-3-5-haiku-20241022",
-                max_tokens=10,
-                messages=[{"role": "user", "content": "hi"}],
-            )
-
-        elif req.provider == "google":
-            import google.generativeai as genai
-            genai.configure(api_key=req.api_key)
-            list(genai.list_models(page_size=1))
-
-        elif req.provider == "groq":
-            from groq import Groq
-            client = Groq(api_key=req.api_key, timeout=10)
-            client.models.list()
-
+    q = _check_quota(req.provider, req.api_key)
+    if q["has_quota"]:
         return TestProviderResponse(success=True, message=f"{req.provider.title()} connected successfully!")
-
-    except Exception as e:
-        reason = str(e)
-        if "401" in reason or "unauthorized" in reason.lower() or "api key" in reason.lower() or "invalid" in reason.lower():
-            msg = f"Connection failed: invalid API key for {req.provider.title()}"
-        else:
-            msg = f"Connection failed: {reason}"
-        return TestProviderResponse(success=False, message=msg)
+    return TestProviderResponse(success=False, message=q["message"])
 
 
 def _check_warnings(settings: Settings) -> list[str]:

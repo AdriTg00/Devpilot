@@ -609,8 +609,14 @@ export interface HealthResponse {
   settings: {
     provider: string;
     model: string;
+    active_model: string;
     temperature: number;
     max_tokens: number;
+  };
+  quota: {
+    has_quota: boolean;
+    message: string;
+    error: string | null;
   };
   services: {
     ollama: { reachable: boolean; models: string[]; error: string | null };

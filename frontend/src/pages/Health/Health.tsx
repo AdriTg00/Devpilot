@@ -98,6 +98,8 @@ export default function Health() {
 
   const { settings, services, storage, uptime_seconds, version } = data;
 
+  const quota = data.quota;
+
   return (
     <motion.div
       className="mx-auto max-w-4xl space-y-6 py-4"
@@ -126,6 +128,18 @@ export default function Health() {
         <StatCard label="Temperature" value={String(settings.temperature)} />
         <StatCard label="Max Tokens" value={String(settings.max_tokens)} />
       </div>
+
+      {quota && !quota.has_quota && (
+        <div className="rounded-[6px] border border-amber-800/50 bg-amber-950/40 p-4 backdrop-blur-sm">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 shrink-0 text-amber-400">⚠</span>
+            <div>
+              <p className="text-sm font-medium text-amber-300">Quota / Credits</p>
+              <p className="mt-1 text-xs text-amber-400/80">{quota.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Section title="Ollama">

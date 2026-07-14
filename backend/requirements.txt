@@ -7,6 +7,7 @@ groq
 openai
 anthropic
 google-generativeai
+google-genai
 chromadb
 sqlalchemy
 slowapi

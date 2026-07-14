@@ -156,7 +156,8 @@ def get_shared_project(token: str):
 @app.get("/health/detailed")
 def health_detailed():
     from app.core.config import MEMORY_STORAGE_PATH, SHARES_STORAGE_PATH
-    from app.services.llm_service import get_llm_service
+    from app.api.settings import get_quota_status
+    from app.services.llm_service import get_llm_service, resolve_model_name
     from app.services.rag_service import rag_service
     from app.services.settings_service import settings_service
 
@@ -205,10 +206,12 @@ def health_detailed():
         "uptime_seconds": round(uptime),
         "settings": {
             "provider": settings.provider,
-            "model": get_llm_service().model_name,
+            "model": resolve_model_name(settings),
+            "active_model": get_llm_service().model_name,
             "temperature": settings.temperature,
             "max_tokens": settings.max_tokens,
         },
+        "quota": get_quota_status(settings.provider),
         "services": {
             "ollama": ollama_status,
             "groq": groq_status,

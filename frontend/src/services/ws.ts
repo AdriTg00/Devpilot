@@ -68,6 +68,7 @@ class WebSocketClient {
       this.handlers.set(event, new Set());
     }
     this.handlers.get(event)!.add(handler);
+    this.connect();
     return () => this.off(event, handler);
   }
 
@@ -99,14 +100,10 @@ export function useWebSocketEvent(event: string, handler: EventHandler) {
 }
 
 export function useWebSocket() {
-  const connected = useRef(false);
-
   useEffect(() => {
     wsClient.connect();
-    connected.current = true;
     return () => {
       wsClient.disconnect();
-      connected.current = false;
     };
   }, []);
 

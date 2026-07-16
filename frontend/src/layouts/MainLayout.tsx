@@ -8,7 +8,7 @@ import Particles from "../components/effects/Particles";
 import WelcomeHero from "../components/welcome/WelcomeHero";
 import HotkeysHelp from "../components/hotkeys/HotkeysHelp";
 import BackendStatusOverlay from "../components/backend/BackendStatusOverlay";
-import WebSocketProvider from "../components/backend/WebSocketProvider";
+
 import { useWelcome } from "../components/welcome/WelcomeProvider";
 import { useSoundEffects } from "../hooks/useSoundEffects";
 
@@ -113,7 +113,6 @@ export default function MainLayout() {
         </AnimatePresence>
         <HotkeysHelp />
         <BackendStatusOverlay />
-        <WebSocketProvider />
-      </div>
+    </div>
   );
 }

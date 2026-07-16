@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-type EventHandler = (data: any) => void;
+type EventHandler = (data: Record<string, unknown>) => void;
 
 const WS_BASE = import.meta.env.VITE_WS_URL || "ws://localhost:8000";
 
@@ -74,7 +74,7 @@ class WebSocketClient {
     this.handlers.get(event)?.delete(handler);
   }
 
-  send(event: string, data?: any) {
+  send(event: string, data?: Record<string, unknown>) {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ event, data }));
     }
@@ -85,8 +85,11 @@ const wsUrl = `${WS_BASE}/ws`;
 export const wsClient = new WebSocketClient(wsUrl);
 
 export function useWebSocketEvent(event: string, handler: EventHandler) {
-  const handlerRef = useRef(handler);
-  handlerRef.current = handler;
+  const handlerRef = useRef<EventHandler>(handler);
+
+  useEffect(() => {
+    handlerRef.current = handler;
+  });
 
   useEffect(() => {
     const unsub = wsClient.on(event, (...args) => handlerRef.current(...args));

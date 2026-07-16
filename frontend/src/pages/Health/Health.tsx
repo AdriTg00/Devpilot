@@ -64,7 +64,7 @@ export default function Health() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchHealth();

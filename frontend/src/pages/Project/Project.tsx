@@ -41,7 +41,7 @@ export default function Project() {
     if (refreshKey > 0) {
       analyze();
     }
-  }, [refreshKey]);
+  }, [refreshKey, analyze]);
 
   return (
     <motion.div

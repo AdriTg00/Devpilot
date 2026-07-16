@@ -39,7 +39,7 @@ export async function updateSettings(updates: Partial<typeof mockSettings>) {
   return { settings: { ...mockSettings, ...updates }, warnings: [] };
 }
 
-export async function testProviderConnection(_provider: string, _apiKey: string) {
+export async function testProviderConnection() {
   return { success: true, message: "OK" };
 }
 

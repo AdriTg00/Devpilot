@@ -54,7 +54,7 @@ export default function MainLayout() {
   }, []);
 
   return (
-    <div className="flex h-screen flex-col bg-[#05080f] text-white">
+    <div className="flex h-screen flex-col" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}>
       <div className="pointer-events-none fixed inset-0 tech-grid" />
       <Particles />
       {!reducedMotion && (

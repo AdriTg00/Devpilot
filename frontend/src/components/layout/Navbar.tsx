@@ -1,5 +1,7 @@
 import { NavLink, type NavLinkRenderProps } from "react-router-dom";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { useTheme } from "../../contexts/ThemeContext";
+import { Sun, Moon } from "lucide-react";
 import logo from "../../assets/DevPilotSinFondo.png";
 
 const linkKeys = [
@@ -12,9 +14,13 @@ const linkKeys = [
 
 export default function Navbar() {
   const { t } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="relative overflow-hidden border-b border-emerald-900/30 bg-slate-900/60 backdrop-blur-md">
+    <header
+      className="relative overflow-hidden border-b backdrop-blur-md"
+      style={{ borderColor: "var(--border-color)", backgroundColor: "var(--bg-nav)" }}
+    >
       <div className="pointer-events-none absolute inset-0 tech-grid" />
       <img
         src={logo}
@@ -25,8 +31,16 @@ export default function Navbar() {
       />
       <div className="relative flex h-16 items-center justify-between px-4 md:px-8">
         <div className="flex items-center gap-3">
+          <button
+            onClick={toggleTheme}
+            className="rounded-[6px] p-2 transition hover:bg-hover"
+            style={{ color: "var(--text-secondary)" }}
+            aria-label={t("theme.toggle")}
+          >
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
         </div>
-        <span className="hidden text-sm text-slate-400 sm:block">
+        <span className="hidden text-sm sm:block" style={{ color: "var(--text-muted)" }}>
           {t("navbar.subtitle")}
         </span>
       </div>
@@ -40,10 +54,13 @@ export default function Navbar() {
             className={({ isActive }: NavLinkRenderProps) =>
               `whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                 isActive
-              ? "border-emerald-400 text-emerald-300"
-              : "border-transparent text-slate-500 hover:text-slate-200 hover:border-emerald-700/50"
+                  ? "border-emerald-400"
+                  : "border-transparent hover:border-emerald-700/50"
               }`
             }
+            style={({ isActive }: NavLinkRenderProps) => ({
+              color: isActive ? "var(--text-accent)" : "var(--text-muted)",
+            })}
             data-cuelume-hover="tick"
           >
             {t(link.key)}

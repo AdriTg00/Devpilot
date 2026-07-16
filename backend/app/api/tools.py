@@ -38,3 +38,22 @@ def analyze_file_endpoint(request: AnalyzeRequest):
     ext = request.path.rsplit(".", 1)[-1] if "." in request.path else ""
     stats = analyze_file(content, f".{ext}")
     return {"path": request.path, "extension": f".{ext}", "stats": stats}
+
+
+@router.get("/plugins")
+async def list_plugins():
+    """List all registered plugins and tools."""
+    from app.services.plugin_registry import get_tool_definitions
+
+    tools = get_tool_definitions()
+    return {
+        "plugins": [
+            {
+                "name": "builtin",
+                "version": "1.0.0",
+                "description": "Built-in DevPilot tools",
+                "tools": [t["function"]["name"] for t in tools],
+            }
+        ],
+        "tools": tools,
+    }

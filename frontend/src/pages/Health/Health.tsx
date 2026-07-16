@@ -92,8 +92,8 @@ export default function Health() {
         <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-[6px] bg-red-900/30">
           <span className="text-3xl">⚠</span>
         </div>
-        <h2 className="mb-2 text-xl font-bold text-white">{t("health.offline")}</h2>
-        <p className="text-sm text-slate-400">{error || t("health.offline_desc")}</p>
+        <h2 className="mb-2 text-xl font-bold text-primary">{t("health.offline")}</h2>
+        <p className="text-sm text-secondary">{error || t("health.offline_desc")}</p>
       </div>
     );
   }
@@ -111,8 +111,8 @@ export default function Health() {
     >
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">{t("health.title")}</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <h1 className="text-2xl font-bold text-primary">{t("health.title")}</h1>
+          <p className="mt-1 text-sm text-secondary">
             DevPilot v{version} &middot; {t("health.uptime")} {formatUptime(uptime_seconds)}
           </p>
         </div>

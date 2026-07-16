@@ -3,6 +3,7 @@ import {
   useContext,
   useState,
   useRef,
+  useEffect,
   type ReactNode,
 } from "react";
 
@@ -301,6 +302,35 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   }
+
+  const pollingPathRef = useRef(currentPath);
+  const pollingFilesRef = useRef(files);
+  const pollingTabRef = useRef(activeTabId);
+  pollingPathRef.current = currentPath;
+  pollingFilesRef.current = files;
+  pollingTabRef.current = activeTabId;
+
+  useEffect(() => {
+    if (!currentPath || !analysis) return;
+
+    const id = setInterval(async () => {
+      const path = pollingPathRef.current;
+      const fileList = pollingFilesRef.current;
+      const tabId = pollingTabRef.current;
+      if (!path) return;
+      try {
+        const { getFiles } = await import("../services/projectService");
+        const result = await getFiles(path);
+        if (result && JSON.stringify(result) !== JSON.stringify(fileList)) {
+          await analyzeWithPath(path, tabId ?? undefined);
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 30000);
+
+    return () => clearInterval(id);
+  }, [currentPath, analysis]);
 
   async function analyze() {
     if (!currentPath) return;

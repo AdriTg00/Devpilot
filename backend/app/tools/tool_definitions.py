@@ -1,94 +1,96 @@
 import json
 from pathlib import Path
 
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "read_file",
-            "description": "Lee el contenido completo de un archivo del proyecto. Útil cuando necesitas ver el código fuente.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Ruta absoluta al archivo que se quiere leer",
-                    }
-                },
-                "required": ["path"],
-            },
+from app.services.plugin_registry import (
+    register_tool as _register_tool,
+    get_tool_definitions as _get_tool_definitions,
+    execute_tool as _execute_tool,
+)
+
+_FILE_READ_PARAMS = {
+    "type": "object",
+    "properties": {
+        "path": {
+            "type": "string",
+            "description": "Ruta absoluta al archivo que se quiere leer",
+        }
+    },
+    "required": ["path"],
+}
+
+_LIST_FILES_PARAMS = {
+    "type": "object",
+    "properties": {
+        "path": {
+            "type": "string",
+            "description": "Ruta del directorio a listar (absoluta o relativa al proyecto)",
+        }
+    },
+    "required": ["path"],
+}
+
+_SEARCH_CODE_PARAMS = {
+    "type": "object",
+    "properties": {
+        "query": {
+            "type": "string",
+            "description": "Texto a buscar (case-insensitive)",
+        },
+        "path": {
+            "type": "string",
+            "description": "Ruta del proyecto",
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "list_files",
-            "description": "Lista los archivos del proyecto activo. Devuelve rutas relativas. Útil para explorar la estructura del proyecto.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Ruta del directorio a listar (absoluta o relativa al proyecto)",
-                    }
-                },
-                "required": ["path"],
-            },
-        },
+    "required": ["query", "path"],
+}
+
+_STRUCTURE_PARAMS = {
+    "type": "object",
+    "properties": {
+        "path": {
+            "type": "string",
+            "description": "Ruta del proyecto",
+        }
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "search_code",
-            "description": "Busca texto en los archivos del proyecto. Similar a grep. Devuelve archivo, línea y contenido.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Texto a buscar (case-insensitive)",
-                    },
-                    "path": {
-                        "type": "string",
-                        "description": "Ruta del proyecto",
-                    },
-                },
-                "required": ["query", "path"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_project_structure",
-            "description": "Obtiene el árbol de directorios del proyecto (solo estructura, sin contenido de archivos).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Ruta del proyecto",
-                    }
-                },
-                "required": ["path"],
-            },
-        },
-    },
-]
+    "required": ["path"],
+}
+
+
+def _register_builtin_tools():
+    """Register all built-in tools with the plugin registry."""
+    _register_tool(
+        name="read_file",
+        description="Lee el contenido completo de un archivo del proyecto. Útil cuando necesitas ver el código fuente.",
+        handler=_read_file,
+        parameters=_FILE_READ_PARAMS,
+    )
+    _register_tool(
+        name="list_files",
+        description="Lista los archivos del proyecto activo. Devuelve rutas relativas. Útil para explorar la estructura del proyecto.",
+        handler=_list_files,
+        parameters=_LIST_FILES_PARAMS,
+    )
+    _register_tool(
+        name="search_code",
+        description="Busca texto en los archivos del proyecto. Similar a grep. Devuelve archivo, línea y contenido.",
+        handler=_search_code,
+        parameters=_SEARCH_CODE_PARAMS,
+    )
+    _register_tool(
+        name="get_project_structure",
+        description="Obtiene el árbol de directorios del proyecto (solo estructura, sin contenido de archivos).",
+        handler=_get_project_structure,
+        parameters=_STRUCTURE_PARAMS,
+    )
+
+
+def get_tools() -> list[dict]:
+    return _get_tool_definitions()
 
 
 def execute_tool(name: str, args: dict) -> str:
     try:
-        if name == "read_file":
-            return _read_file(args["path"])
-        elif name == "list_files":
-            return _list_files(args["path"])
-        elif name == "search_code":
-            return _search_code(args["query"], args["path"])
-        elif name == "get_project_structure":
-            return _get_project_structure(args["path"])
-        else:
-            return json.dumps({"error": f"Unknown tool: {name}"})
+        return _execute_tool(name, args)
     except Exception as e:
         return json.dumps({"error": str(e)})
 
@@ -158,3 +160,6 @@ def _get_project_structure(path: str) -> str:
         return "\n".join(tree)
     except Exception as e:
         return f"Error: Could not get structure: {e}"
+
+
+_register_builtin_tools()

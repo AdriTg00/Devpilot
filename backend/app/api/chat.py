@@ -17,7 +17,7 @@ from app.services.llm_service import get_llm_service
 from app.services.memory_service import memory_service
 from app.services.prompts_service import get_prompt
 from app.services.rag_service import rag_service
-from app.tools.tool_definitions import TOOLS
+from app.tools.tool_definitions import get_tools
 
 router = APIRouter(tags=["chat"])
 
@@ -202,7 +202,7 @@ def chat_tool_stream(request: ToolChatRequest):
             f"usa tus herramientas para leer los archivos completos."
         )
 
-    stream = llm.ask_with_system_tools_stream(system, user_prompt, TOOLS)
+    stream = llm.ask_with_system_tools_stream(system, user_prompt, get_tools())
 
     def generate():
         full = ""

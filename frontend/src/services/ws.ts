@@ -2,26 +2,26 @@ import { useEffect, useRef } from "react";
 
 type EventHandler = (data: Record<string, unknown>) => void;
 
-const WS_BASE = import.meta.env.VITE_WS_URL || "ws://localhost:8000";
+function deriveWsUrl(): string {
+  const httpBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  return httpBase.replace(/^http/, "ws") + "/ws";
+}
 
 class WebSocketClient {
   private ws: WebSocket | null = null;
   private handlers = new Map<string, Set<EventHandler>>();
   private reconnectTimer: number | null = null;
   private url: string;
+  private destroyed = false;
 
   constructor(url: string) {
     this.url = url;
   }
 
   connect() {
-    if (this.ws?.readyState === WebSocket.OPEN) return;
+    if (this.ws?.readyState === WebSocket.OPEN || this.destroyed) return;
 
     this.ws = new WebSocket(this.url);
-
-    this.ws.onopen = () => {
-      console.log("[WS] Connected");
-    };
 
     this.ws.onmessage = (event) => {
       try {
@@ -36,16 +36,17 @@ class WebSocketClient {
     };
 
     this.ws.onclose = () => {
-      console.log("[WS] Disconnected");
+      this.ws = null;
       this.scheduleReconnect();
     };
 
     this.ws.onerror = () => {
-      this.ws?.close();
+      // onerror always precedes onclose, so just let onclose handle reconnection
     };
   }
 
   disconnect() {
+    this.destroyed = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -81,7 +82,7 @@ class WebSocketClient {
   }
 }
 
-const wsUrl = `${WS_BASE}/ws`;
+const wsUrl = deriveWsUrl();
 export const wsClient = new WebSocketClient(wsUrl);
 
 export function useWebSocketEvent(event: string, handler: EventHandler) {

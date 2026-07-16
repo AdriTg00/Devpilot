@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Card from "../ui/Card";
 import Spinner from "../ui/Spinner";
 
@@ -52,6 +52,17 @@ export default function ProjectSelector() {
       }
     }
   }
+
+  const handleBrowseRef = useRef(handleBrowse);
+  useEffect(() => {
+    handleBrowseRef.current = handleBrowse;
+  });
+
+  useEffect(() => {
+    const handler = () => handleBrowseRef.current();
+    window.addEventListener("devpilot:open-project", handler);
+    return () => window.removeEventListener("devpilot:open-project", handler);
+  }, []);
 
   async function handleDrop(e: React.DragEvent) {
     e.preventDefault();

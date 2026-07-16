@@ -122,7 +122,7 @@ export default function CurrentProject() {
                         {exporting ? "..." : t("current_project.export")}
                     </button>
                     <button
-                        onClick={closeProject}
+                        onClick={() => closeProject()}
                         disabled={closing}
                         className="rounded-[6px] border border-emerald-900/30 bg-slate-800/40 px-3 py-1.5 text-xs text-slate-400 backdrop-blur-sm transition-all duration-200 hover:border-red-800/50 hover:text-red-400 hover:bg-red-900/20 disabled:opacity-50"
                     >

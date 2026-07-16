@@ -44,6 +44,7 @@ from app.services.llm_service import get_llm_service
 from app.services.memory_service import memory_service
 from app.services.project_service import ProjectService
 from app.services.rag_service import rag_service
+from app.services.ws_manager import manager
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ UPLOAD_DIR = Path("temp_uploads")
 
 
 @router.post("/upload")
-def upload_project(request: UploadRequest):
+async def upload_project(request: UploadRequest):
     if len(request.files) > MAX_UPLOAD_FILES:
         raise HTTPException(
             status_code=413,
@@ -86,6 +87,11 @@ def upload_project(request: UploadRequest):
     analysis = service.analyze_project(workspace_path)
     files = service.get_files(workspace_path)
     rag_service.index_project(workspace_path, [f["path"] for f in files])
+
+    await manager.broadcast("project:analyzed", {
+        "projectName": request.name,
+        "files": analysis.get("files", 0),
+    })
 
     return {
         "workspace_path": workspace_path,
@@ -159,11 +165,15 @@ def get_files(request: ProjectRequest):
 
 
 @router.post("/analyze")
-def analyze_project(request: ProjectRequest):
+async def analyze_project(request: ProjectRequest):
     validate_directory(request.path)
     result = service.analyze_project(request.path)
     files = service.get_files(request.path)
     rag_service.index_project(request.path, [f["path"] for f in files])
+    await manager.broadcast("project:analyzed", {
+        "projectName": request.path.split("/")[-1].split("\\")[-1],
+        "files": result.get("files", 0),
+    })
     return result
 
 
@@ -252,9 +262,12 @@ def code_review(request: ProjectRequest):
 
 
 @router.post("/code-review/json", response_model=CodeReviewJsonResponse)
-def code_review_json(request: ProjectRequest):
+async def code_review_json(request: ProjectRequest):
     validate_directory(request.path)
-    return explainer.code_review_json(request.path, request.language)
+    result = explainer.code_review_json(request.path, request.language)
+    count = sum(len(c.get("findings", [])) for c in result.get("categories", []))
+    await manager.broadcast("code-review:complete", {"findings": count})
+    return result
 
 
 @router.post("/documentation")
@@ -346,10 +359,11 @@ def get_rag_status(path: str | None = None):
 
 
 @router.post("/rag-reindex")
-def reindex_project(request: RAGReindexRequest):
+async def reindex_project(request: RAGReindexRequest):
     validate_directory(request.path)
     files = request.files or [f["path"] for f in service.get_files(request.path)]
     rag_service.index_project(request.path, files)
+    await manager.broadcast("rag:reindexed", {"files": len(files)})
     return {"message": f"Reindexed {len(files)} files for {request.path}", "files": len(files)}
 
 

@@ -1,13 +1,20 @@
 import os
 import time
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.settings import Settings
 from app.services.llm_service import _reinit_llm_service
+from app.services.prompts_service import (
+    get_all_prompts,
+    get_default_prompts,
+    get_prompt_descriptions,
+    reset_prompt,
+    update_prompt,
+)
 from app.services.settings_service import settings_service
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -141,6 +148,45 @@ def test_provider(req: TestProviderRequest):
     if q["has_quota"]:
         return TestProviderResponse(success=True, message=f"{req.provider.title()} connected successfully!")
     return TestProviderResponse(success=False, message=q["message"])
+
+
+@router.get("/prompts")
+async def list_prompts():
+    """Get all editable prompts with descriptions."""
+    prompts = get_all_prompts()
+    descriptions = get_prompt_descriptions()
+    defaults = get_default_prompts()
+    return {
+        "prompts": [
+            {
+                "key": key,
+                "value": prompts[key],
+                "description": descriptions.get(key, ""),
+                "is_default": prompts[key] == defaults.get(key, ""),
+            }
+            for key in prompts
+        ]
+    }
+
+
+@router.put("/prompts/{key}")
+async def save_prompt(key: str, body: dict = Body(...)):
+    """Update a prompt by key."""
+    value = body.get("value", "")
+    if not value.strip():
+        raise HTTPException(status_code=400, detail="Prompt value cannot be empty")
+    update_prompt(key, value)
+    return {"success": True}
+
+
+@router.post("/prompts/{key}/reset")
+async def reset_prompt_endpoint(key: str):
+    """Reset a prompt to its default value."""
+    try:
+        default = reset_prompt(key)
+        return {"success": True, "default": default}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 def _check_warnings(settings: Settings) -> list[str]:

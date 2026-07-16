@@ -91,13 +91,17 @@ interface ProjectContextType {
 
   analyze: () => Promise<void>;
   uploadAndAnalyze: (name: string, files: Record<string, string>) => Promise<void>;
-  closeProject: () => Promise<void>;
+  closeProject: (path?: string) => Promise<void>;
   resumeProject: () => Promise<void>;
 
   projectTabs: { id: string; path: string; name: string }[];
   activeTabId: string | null;
   switchTab: (id: string) => void;
   closeTab: (id: string) => Promise<void>;
+
+  openProjects: Record<string, { projectName: string; analysis: ProjectAnalysis | null }>;
+  activeProjectPath: string;
+  switchProject: (path: string) => void;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -236,14 +240,26 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function closeProject() {
-    if (!activeTabId) return;
-    await closeTab(activeTabId);
+  async function closeProject(path?: string) {
+    const tabId = path
+      ? tabs.find((t) => t.path === path)?.id
+      : activeTabId;
+    if (tabId) await closeTab(tabId);
   }
 
   function switchTab(id: string) {
     setActiveTabId(id);
   }
+
+  function switchProject(path: string) {
+    setCurrentPath(path);
+  }
+
+  const openProjects: Record<string, { projectName: string; analysis: ProjectAnalysis | null }> = Object.fromEntries(
+    tabs.map((t) => [t.path, { projectName: t.name, analysis: t.view.analysis }])
+  );
+
+  const activeProjectPath = activeTab?.path ?? "";
 
   function clearRecentProjects() {
     localStorage.removeItem(RECENT_KEY);
@@ -388,6 +404,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         activeTabId,
         switchTab,
         closeTab,
+        openProjects,
+        activeProjectPath,
+        switchProject,
       }}
     >
       {children}

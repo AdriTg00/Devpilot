@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useProject } from "../../contexts/ProjectContext";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { useWebSocketEvent } from "../../services/ws";
 import CollapsibleSection from "../../components/ui/CollapsibleSection";
 import ProjectSelector from "../../components/dashboard/ProjectSelector";
 import ProjectTabs from "../../components/dashboard/ProjectTabs";
@@ -23,8 +25,23 @@ const fadeUp = {
 };
 
 export default function Project() {
-  const { analysis } = useProject();
+  const { analysis, analyze } = useProject();
   const { t } = useLanguage();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useWebSocketEvent("project:analyzed", () => {
+    setRefreshKey((k) => k + 1);
+  });
+
+  useWebSocketEvent("rag:reindexed", () => {
+    setRefreshKey((k) => k + 1);
+  });
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      analyze();
+    }
+  }, [refreshKey]);
 
   return (
     <motion.div

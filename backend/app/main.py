@@ -118,6 +118,7 @@ from app.api.projects import router as project_router
 from app.api.settings import router as settings_router
 from app.api.shares import router as shares_router
 from app.api.tools import router as tools_router
+from app.api import ws
 
 API_V1 = "/api/v1"
 
@@ -126,6 +127,7 @@ app.include_router(project_router, prefix=API_V1)
 app.include_router(tools_router, prefix=API_V1)
 app.include_router(settings_router, prefix=API_V1)
 app.include_router(shares_router, prefix=API_V1)
+app.include_router(ws.router)
 
 # ── Public endpoints (no versioning, no auth) ─────────────────────────────
 

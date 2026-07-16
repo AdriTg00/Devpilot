@@ -38,3 +38,12 @@ class Message(Base):
     role = Column(String(16), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+
+
+class Prompt(Base):
+    __tablename__ = "prompts"
+
+    key = Column(String(64), primary_key=True)
+    value = Column(Text, nullable=False)
+    description = Column(String(256), default="")
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)

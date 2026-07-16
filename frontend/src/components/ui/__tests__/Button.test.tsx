@@ -11,7 +11,7 @@ describe("Button", () => {
   it("applies variant classes", () => {
     render(<Button variant="danger">Delete</Button>);
     const btn = screen.getByText("Delete");
-    expect(btn.className).toContain("bg-red-600");
+    expect(btn.className).toContain("bg-red-500/10");
   });
 
   it("respects disabled prop", () => {

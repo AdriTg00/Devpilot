@@ -113,12 +113,12 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # ── Routers (API versioning con /api/v1) ──────────────────────────────────
 
+from app.api import ws
 from app.api.chat import router as chat_router
 from app.api.projects import router as project_router
 from app.api.settings import router as settings_router
 from app.api.shares import router as shares_router
 from app.api.tools import router as tools_router
-from app.api import ws
 
 API_V1 = "/api/v1"
 
@@ -157,8 +157,8 @@ def get_shared_project(token: str):
 
 @app.get("/health/detailed")
 def health_detailed():
-    from app.core.config import MEMORY_STORAGE_PATH, SHARES_STORAGE_PATH
     from app.api.settings import get_quota_status
+    from app.core.config import MEMORY_STORAGE_PATH, SHARES_STORAGE_PATH
     from app.services.llm_service import get_llm_service, resolve_model_name
     from app.services.rag_service import rag_service
     from app.services.settings_service import settings_service

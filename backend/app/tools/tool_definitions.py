@@ -2,9 +2,13 @@ import json
 from pathlib import Path
 
 from app.services.plugin_registry import (
-    register_tool as _register_tool,
-    get_tool_definitions as _get_tool_definitions,
     execute_tool as _execute_tool,
+)
+from app.services.plugin_registry import (
+    get_tool_definitions as _get_tool_definitions,
+)
+from app.services.plugin_registry import (
+    register_tool as _register_tool,
 )
 
 _FILE_READ_PARAMS = {

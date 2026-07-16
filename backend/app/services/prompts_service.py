@@ -2,9 +2,9 @@
 
 from sqlalchemy.orm import Session as DBSession
 
+from app.core import prompts as default_prompts
 from app.db.database import SessionLocal
 from app.db.models import Prompt
-from app.core import prompts as default_prompts
 
 _DEFAULT_PROMPTS: dict[str, str] = {
     "chat_system": default_prompts._CHAT_SYSTEM_PROMPT,

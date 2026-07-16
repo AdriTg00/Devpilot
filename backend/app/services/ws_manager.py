@@ -1,9 +1,10 @@
 """WebSocket connection manager for server-sent events."""
 
-from fastapi import WebSocket
-from typing import Set
 import json
 import logging
+from typing import Set
+
+from fastapi import WebSocket
 
 logger = logging.getLogger("devpilot.ws")
 

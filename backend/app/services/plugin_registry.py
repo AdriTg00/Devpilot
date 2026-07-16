@@ -1,7 +1,7 @@
 """Plugin registry for extensible tools and analyzers."""
 
-from typing import Any, Callable
 import logging
+from typing import Any, Callable
 
 logger = logging.getLogger("devpilot.plugins")
 

@@ -1,6 +1,7 @@
 """WebSocket endpoint for real-time events."""
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 from app.services.ws_manager import manager
 
 router = APIRouter()

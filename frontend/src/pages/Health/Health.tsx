@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
+import { useLanguage } from "../../contexts/LanguageContext";
 import { getHealthDetailed, type HealthResponse } from "../../services/projectService";
 
 function StatusDot({ ok }: { ok: boolean }) {
@@ -48,6 +49,7 @@ function formatUptime(seconds: number): string {
 }
 
 export default function Health() {
+  const { t } = useLanguage();
   const [data, setData] = useState<HealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export default function Health() {
       setData(d);
       setError(null);
     } catch {
-      setError("Backend is unreachable");
+      setError(t("health.unreachable"));
     } finally {
       setLoading(false);
     }
@@ -78,7 +80,7 @@ export default function Health() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          Loading health data...
+          {t("health.loading")}
         </div>
       </div>
     );
@@ -90,8 +92,8 @@ export default function Health() {
         <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-[6px] bg-red-900/30">
           <span className="text-3xl">⚠</span>
         </div>
-        <h2 className="mb-2 text-xl font-bold text-white">Backend Offline</h2>
-        <p className="text-sm text-slate-400">{error || "Could not fetch health data"}</p>
+        <h2 className="mb-2 text-xl font-bold text-white">{t("health.offline")}</h2>
+        <p className="text-sm text-slate-400">{error || t("health.offline_desc")}</p>
       </div>
     );
   }
@@ -109,24 +111,24 @@ export default function Health() {
     >
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Health Dashboard</h1>
+          <h1 className="text-2xl font-bold text-white">{t("health.title")}</h1>
           <p className="mt-1 text-sm text-slate-400">
-            DevPilot v{version} &middot; Uptime {formatUptime(uptime_seconds)}
+            DevPilot v{version} &middot; {t("health.uptime")} {formatUptime(uptime_seconds)}
           </p>
         </div>
         <button
           onClick={() => { setLoading(true); fetchHealth(); }}
           className="rounded-[6px] border border-emerald-900/30 px-4 py-2 text-sm text-slate-400 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/50 hover:text-emerald-300 hover:shadow-[0_0_8px_rgba(34,197,94,0.06)]"
         >
-          Refresh
+          {t("health.refresh")}
         </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label="Provider" value={settings.provider} />
-        <StatCard label="Model" value={settings.model} />
-        <StatCard label="Temperature" value={String(settings.temperature)} />
-        <StatCard label="Max Tokens" value={String(settings.max_tokens)} />
+        <StatCard label={t("health.provider")} value={settings.provider} />
+        <StatCard label={t("health.model")} value={settings.model} />
+        <StatCard label={t("health.temperature")} value={String(settings.temperature)} />
+        <StatCard label={t("health.max_tokens")} value={String(settings.max_tokens)} />
       </div>
 
       {quota && !quota.has_quota && (
@@ -134,7 +136,7 @@ export default function Health() {
           <div className="flex items-start gap-3">
             <span className="mt-0.5 shrink-0 text-amber-400">⚠</span>
             <div>
-              <p className="text-sm font-medium text-amber-300">Quota / Credits</p>
+              <p className="text-sm font-medium text-amber-300">{t("health.quota_title")}</p>
               <p className="mt-1 text-xs text-amber-400/80">{quota.message}</p>
             </div>
           </div>
@@ -142,12 +144,12 @@ export default function Health() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Section title="Ollama">
+        <Section title={t("health.section_ollama")}>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <StatusDot ok={services.ollama.reachable} />
               <span className="text-sm text-slate-300">
-                {services.ollama.reachable ? "Reachable" : "Unreachable"}
+                {services.ollama.reachable ? t("health.reachable") : t("health.unreachable_label")}
               </span>
               {services.ollama.error && (
                 <span className="text-xs text-red-400">{services.ollama.error}</span>
@@ -155,7 +157,7 @@ export default function Health() {
             </div>
             {services.ollama.models.length > 0 && (
               <div>
-                <p className="mb-1.5 text-[11px] uppercase tracking-wider text-slate-500">Models</p>
+                <p className="mb-1.5 text-[11px] uppercase tracking-wider text-slate-500">{t("health.models")}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {services.ollama.models.map((m) => (
                     <span
@@ -171,31 +173,31 @@ export default function Health() {
           </div>
         </Section>
 
-        <Section title="Groq">
+        <Section title={t("health.section_groq")}>
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <StatusDot ok={services.groq.configured} />
               <span className="text-sm text-slate-300">
-                {services.groq.configured ? "API Key configured" : "No API key"}
+                {services.groq.configured ? t("health.api_configured") : t("health.no_api")}
               </span>
             </div>
             {services.groq.configured && (
               <div className="flex items-center gap-3">
                 <StatusDot ok={services.groq.reachable} />
                 <span className="text-sm text-slate-300">
-                  {services.groq.reachable ? "Reachable" : "Unreachable"}
+                  {services.groq.reachable ? t("health.reachable") : t("health.unreachable_label")}
                 </span>
               </div>
             )}
           </div>
         </Section>
 
-        <Section title="RAG (ChromaDB)">
+        <Section title={t("health.section_rag")}>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <StatusDot ok={services.rag_ready} />
               <span className="text-sm text-slate-300">
-                {services.rag_ready ? "Ready" : "Unavailable"}
+                {services.rag_ready ? t("health.rag_ready") : t("health.rag_unavailable")}
               </span>
             </div>
             {services.rag && Object.keys(services.rag).length > 0 && (
@@ -211,18 +213,18 @@ export default function Health() {
           </div>
         </Section>
 
-        <Section title="Storage">
+        <Section title={t("health.section_storage")}>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between rounded-[6px] bg-slate-800/50 px-3 py-2">
-              <span className="text-slate-500">Memory file</span>
+              <span className="text-slate-500">{t("health.memory_file")}</span>
               <span className="text-slate-300 w-40 truncate text-right font-mono">{storage.memory_path}</span>
             </div>
             <div className="flex justify-between rounded-[6px] bg-slate-800/50 px-3 py-2">
-              <span className="text-slate-500">Memory size</span>
+              <span className="text-slate-500">{t("health.memory_size")}</span>
               <span className="text-slate-300">{formatBytes(storage.memory_bytes)}</span>
             </div>
             <div className="flex justify-between rounded-[6px] bg-slate-800/50 px-3 py-2">
-              <span className="text-slate-500">Active shares</span>
+              <span className="text-slate-500">{t("health.active_shares")}</span>
               <span className="text-slate-300">{storage.shares_count}</span>
             </div>
           </div>

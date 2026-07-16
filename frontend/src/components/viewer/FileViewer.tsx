@@ -281,14 +281,46 @@ export default function FileViewer() {
             </svg>
             {t("viewer.search")}
           </button>
-          <button
-            onClick={explainSelectedFile}
-            disabled={explaining}
-            className="inline-flex items-center gap-2 rounded-[6px] border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 backdrop-blur-sm shadow-[0_0_12px_rgba(34,197,94,0.08)] transition-all duration-200 hover:bg-emerald-500/20 hover:border-emerald-400/60 hover:text-emerald-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.18)] disabled:opacity-50"
-          >
-            {explaining && <Spinner size="sm" />}
-            {explaining ? t("viewer.generating") : t("viewer.explain")}
-          </button>
+          {editing ? (
+            <>
+              <button
+                onClick={handleSave}
+                className="inline-flex items-center gap-2 rounded-[6px] border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 backdrop-blur-sm transition-all duration-200 hover:bg-emerald-500/20 hover:border-emerald-400/60"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {t("viewer.save")}
+              </button>
+              <button
+                onClick={cancelEditing}
+                className="inline-flex items-center gap-2 rounded-[6px] border border-emerald-900/30 px-4 py-2 text-sm text-slate-400 backdrop-blur-sm transition-all duration-200 hover:border-red-800/50 hover:text-red-400"
+              >
+                {t("viewer.cancel")}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={startEditing}
+                disabled={!selectedFile}
+                className="inline-flex items-center gap-2 rounded-[6px] border border-emerald-900/30 px-4 py-2 text-sm text-slate-400 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/50 hover:text-emerald-300 disabled:opacity-40"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                {t("viewer.edit")}
+              </button>
+              <button
+                onClick={explainSelectedFile}
+                disabled={explaining}
+                className="inline-flex items-center gap-2 rounded-[6px] border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 backdrop-blur-sm shadow-[0_0_12px_rgba(34,197,94,0.08)] transition-all duration-200 hover:bg-emerald-500/20 hover:border-emerald-400/60 hover:text-emerald-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.18)] disabled:opacity-50"
+              >
+                {explaining && <Spinner size="sm" />}
+                {explaining ? t("viewer.generating") : t("viewer.explain")}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

@@ -98,11 +98,18 @@ def upload_project(request: UploadRequest):
 @router.post("/close")
 def close_project(request: CloseRequest):
     path = Path(request.path).resolve()
-    # Gate: only previously opened projects can be closed.
     assert_project_opened(str(path))
     rag_service.clear_project(str(path))
     memory_service.clear(str(path))
-    if path.exists():
+    # Only delete the directory if it is inside UPLOAD_DIR (uploaded workspace).
+    # Never delete locally-opened projects from the user's file system.
+    upload_dir = UPLOAD_DIR.resolve()
+    try:
+        path.relative_to(upload_dir)
+        is_upload = True
+    except ValueError:
+        is_upload = False
+    if is_upload and path.exists():
         shutil.rmtree(path)
     return {"closed": True}
 

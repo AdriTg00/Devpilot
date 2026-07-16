@@ -85,12 +85,14 @@ async function streamFetch(
   onDone: () => void,
   onError: (err: Error) => void,
   onHeaders?: (headers: Headers) => void,
+  signal?: AbortSignal,
 ) {
   try {
       const response = await fetch(BASE + url, {
       method: "POST",
       headers: jsonHeaders(),
       body: JSON.stringify(body),
+      signal,
     });
 
     if (!response.ok) {
@@ -112,6 +114,7 @@ async function streamFetch(
 
     onDone();
   } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") return;
     onError(err instanceof Error ? err : new Error(String(err)));
   }
 }
@@ -435,8 +438,9 @@ export function streamSessionChat(
   onChunk: (text: string) => void,
   onDone: () => void,
   onError: (err: Error) => void,
+  signal?: AbortSignal,
 ) {
-  streamFetch("/chat-stream", { message, session_id: sessionId }, onChunk, onDone, onError);
+  streamFetch("/chat-stream", { message, session_id: sessionId }, onChunk, onDone, onError, undefined, signal);
 }
 
 export function streamCasualChat(
@@ -463,6 +467,7 @@ export function streamToolChat(
   onDone: () => void,
   onError: (err: Error) => void,
   sessionId?: string,
+  signal?: AbortSignal,
 ) {
   const url = `${BASE}/chat/tool-stream`;
   const body = JSON.stringify({ message, project_path: projectPath, session_id: sessionId || null });
@@ -473,6 +478,7 @@ export function streamToolChat(
       method: "POST",
       headers: jsonHeaders(),
       body,
+      signal,
     })
       .then(async (response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -516,8 +522,12 @@ export function streamToolChat(
 
         onDone();
       })
-      .catch((err) => onError(err instanceof Error ? err : new Error(String(err))));
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        onError(err instanceof Error ? err : new Error(String(err)));
+      });
   } catch (err) {
+    if (err instanceof DOMException && (err as DOMException).name === "AbortError") return;
     onError(err instanceof Error ? err : new Error(String(err)));
   }
 }

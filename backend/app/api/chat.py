@@ -45,7 +45,7 @@ def _build_user_prompt(message: str, session_id: str | None = None, project_path
     else:
         history = memory_service.build_context(_CASUAL_KEY)
     if history:
-        return f"Historial de la conversacion:\n{history}\n\nMensaje actual: {message}"
+        return f"Conversation history:\n{history}\n\nCurrent message: {message}"
     return message
 
 

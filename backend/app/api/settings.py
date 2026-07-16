@@ -1,4 +1,5 @@
 import os
+import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ _KEY_MAP = {
 }
 
 _QUOTA_CACHE: dict[str, dict] = {}
+_QUOTA_TTL = 300  # 5 minutes
 
 _TEST_MODELS = {
     "openai": "gpt-4o-mini",
@@ -29,7 +31,12 @@ _TEST_MODELS = {
 
 
 def _check_quota(provider: str, api_key: str) -> dict:
-    """Test if a provider has available quota/credits by making a tiny completion."""
+    """Test if a provider has available quota/credits by making a tiny completion.
+    Results are cached for _QUOTA_TTL seconds to avoid repeated charges."""
+    cached = _QUOTA_CACHE.get(provider)
+    if cached and (time.time() - cached.get("_ts", 0)) < _QUOTA_TTL:
+        return {k: v for k, v in cached.items() if k != "_ts"}
+
     result = {"has_quota": True, "message": "", "error": None}
     try:
         if provider == "openai":
@@ -65,7 +72,7 @@ def _check_quota(provider: str, api_key: str) -> dict:
                 messages=[{"role": "user", "content": "hi"}],
             )
 
-        _QUOTA_CACHE[provider] = {"has_quota": True, "message": "", "error": None}
+        _QUOTA_CACHE[provider] = {"has_quota": True, "message": "", "error": None, "_ts": time.time()}
         return _QUOTA_CACHE[provider]
 
     except Exception as e:
@@ -76,7 +83,7 @@ def _check_quota(provider: str, api_key: str) -> dict:
             result = {"has_quota": False, "message": f"{provider.title()}: invalid API key", "error": str(e)}
         else:
             result = {"has_quota": True, "message": f"{provider.title()}: connected (quota check skipped)", "error": str(e) if str(e) else None}
-        _QUOTA_CACHE[provider] = result
+        _QUOTA_CACHE[provider] = {**result, "_ts": time.time()}
         return result
 
 
@@ -107,11 +114,6 @@ def update_settings(updates: Settings, db: Session = Depends(get_db)):
     db.commit()
     _reinit_llm_service()
     warnings = _check_warnings(saved)
-    provider = saved.provider
-    if provider in _KEY_MAP:
-        api_key = _get_provider_key(saved, provider)
-        if api_key:
-            _check_quota(provider, api_key)
     return {"settings": saved.model_dump(), "warnings": warnings}
 
 

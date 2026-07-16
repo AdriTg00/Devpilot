@@ -89,7 +89,7 @@ export default function CodeReview() {
       setReviewData(data);
     } catch {
       setReviewError(true);
-      toast("Error running code review", "error");
+      toast(t("code_review.failed"), "error");
     } finally {
       setLoading(false);
     }

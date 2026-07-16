@@ -64,17 +64,21 @@ export default function Settings() {
   const { language, setLanguage, t } = useLanguage();
   const { toast } = useToast();
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [savedSettings, setSavedSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pendingLanguage, setPendingLanguage] = useState<"en" | "es">(language);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string } | null>>({});
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+
+  const isDirty = !!settings && JSON.stringify(settings) !== JSON.stringify(savedSettings);
 
   useEffect(() => {
     getSettings()
-      .then((s) => setSettings(s))
-      .catch(() => toast(t("settings.load_error")))
+      .then((s) => { setSettings(s); setSavedSettings(s); })
+      .catch(() => toast(t("settings.load_error"), "error"))
       .finally(() => setLoading(false));
   }, [t, toast]);
 
@@ -91,6 +95,7 @@ export default function Settings() {
     try {
       const result = await updateSettings(settings);
       setSettings(result.settings);
+      setSavedSettings(result.settings);
       for (const w of result.warnings) {
         toast(w, "info");
       }
@@ -207,16 +212,35 @@ export default function Settings() {
                 {t("settings.api_key", { provider: t(`provider.${p.id}.label`) })}
               </label>
               <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={(settings?.[`${p.id}_api_key` as keyof Settings] as string) ?? ""}
-                  onChange={(e) => {
-                    update(`${p.id}_api_key` as keyof Settings, e.target.value);
-                    setTestResults((prev) => ({ ...prev, [p.id]: null }));
-                  }}
-                  placeholder={t("settings.api_key_placeholder", { provider: t(`provider.${p.id}.label`) })}
-                  className="flex-1 rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-3 py-2 text-sm text-white backdrop-blur-sm placeholder:text-slate-600 focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)] focus:outline-none"
-                />
+                  <div className="relative flex-1">
+                    <input
+                      type={showKeys[p.id] ? "text" : "password"}
+                      value={(settings?.[`${p.id}_api_key` as keyof Settings] as string) ?? ""}
+                      onChange={(e) => {
+                        update(`${p.id}_api_key` as keyof Settings, e.target.value);
+                        setTestResults((prev) => ({ ...prev, [p.id]: null }));
+                      }}
+                      placeholder={t("settings.api_key_placeholder", { provider: t(`provider.${p.id}.label`) })}
+                      className="w-full rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-3 py-2 pr-9 text-sm text-white backdrop-blur-sm placeholder:text-slate-600 focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKeys((prev) => ({ ...prev, [p.id]: !prev[p.id] }))}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+                      tabIndex={-1}
+                    >
+                      {showKeys[p.id] ? (
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                      ) : (
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 <button
                   onClick={() => handleTest(p.id)}
                   disabled={testing === p.id}
@@ -420,7 +444,15 @@ export default function Settings() {
 
       {/* ── Save ── */}
       <motion.div variants={fadeUp} transition={{ duration: 0.3 }}>
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-4">
+          {isDirty && (
+            <span className="flex items-center gap-1.5 rounded-[6px] border border-amber-800/40 bg-amber-900/20 px-3 py-1.5 text-xs text-amber-400">
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              {t("settings.unsaved_changes")}
+            </span>
+          )}
           <Button onClick={handleSave} loading={saving}>
             {t("settings.save")}
           </Button>

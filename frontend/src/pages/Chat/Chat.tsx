@@ -108,8 +108,11 @@ export default function Chat() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SessionSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const projectKey = currentPath || "_casual";
 
@@ -192,6 +195,11 @@ export default function Chat() {
   }
 
   async function handleDeleteSession(sessionId: string) {
+    if (confirmDeleteId !== sessionId) {
+      setConfirmDeleteId(sessionId);
+      return;
+    }
+    setConfirmDeleteId(null);
     try {
       await deleteSession(sessionId);
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
@@ -201,6 +209,23 @@ export default function Chat() {
       }
     } catch {
       toast(t("chat.error_deleting_session"), "error");
+    }
+  }
+
+  function handleStop() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setLoading(false);
+    setTypingId(null);
+  }
+
+  async function handleCopy(id: number, content: string) {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast(t("chat.copy_error"), "error");
     }
   }
 
@@ -268,6 +293,7 @@ export default function Chat() {
     const onDone = () => {
       setLoading(false);
       setTimeout(() => setTypingId(null), 3000);
+      loadSessions();
     };
 
     const onError = () => {
@@ -281,13 +307,14 @@ export default function Chat() {
       toast(t("chat.error_response"), "error");
     };
 
-    if (currentPath) {
-      streamToolChat(question, currentPath, onChunk, onToolEvent, onDone, onError, sessionId);
-    } else {
-      streamSessionChat(question, sessionId, onChunk, onDone, onError);
-    }
+    const abort = new AbortController();
+    abortRef.current = abort;
 
-    loadSessions();
+    if (currentPath) {
+      streamToolChat(question, currentPath, onChunk, onToolEvent, onDone, onError, sessionId, abort.signal);
+    } else {
+      streamSessionChat(question, sessionId, onChunk, onDone, onError, abort.signal);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -375,21 +402,37 @@ export default function Chat() {
                           ? "bg-emerald-600/15 text-emerald-300"
                           : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                       }`}
-                      onClick={() => switchSession(s.id)}
+                      onClick={() => { setConfirmDeleteId(null); switchSession(s.id); }}
                     >
                       <span className="truncate">{s.name}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteSession(s.id);
-                        }}
-                        className="shrink-0 rounded p-0.5 text-slate-600 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
-                        title={t("chat.delete")}
-                      >
-                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+                      {confirmDeleteId === s.id ? (
+                        <div className="flex shrink-0 items-center gap-1 ml-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id); }}
+                            className="rounded px-1.5 py-0.5 text-[10px] bg-red-600/20 text-red-400 hover:bg-red-600/40 transition"
+                          >
+                            {t("chat.confirm_delete")}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
+                            className="rounded p-0.5 text-slate-500 hover:text-slate-300 transition"
+                          >
+                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id); }}
+                          className="shrink-0 rounded p-0.5 text-slate-600 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
+                          title={t("chat.delete")}
+                        >
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   ))}
             </Drawer.ScrollArea>
@@ -418,7 +461,7 @@ export default function Chat() {
               )}
               {activeSession && (
                 <p className="mt-0.5 text-xs text-slate-500">
-                  Session: {sessions.find((s) => s.id === activeSession)?.name || activeSession}
+                  {t("chat.session_label")}: {sessions.find((s) => s.id === activeSession)?.name || activeSession}
                 </p>
               )}
             </div>
@@ -472,7 +515,7 @@ export default function Chat() {
                   }`}
                 >
                   {msg.role === "assistant" ? (
-                    <>
+                    <div className="relative group/msg">
                       {msg.toolCalls && msg.toolCalls.length > 0 && (
                         <div className="mb-3 space-y-1.5">
                           {msg.toolCalls.map((tc, i) => (
@@ -485,6 +528,23 @@ export default function Chat() {
                         loading={typingId === msg.id}
                         speed={25}
                       />
+                      {msg.content && typingId !== msg.id && (
+                        <button
+                          onClick={() => handleCopy(msg.id, msg.content)}
+                          className="absolute -top-2 -right-2 rounded-[6px] border border-emerald-900/30 bg-slate-800/80 p-1 text-slate-500 opacity-0 transition-all duration-150 hover:border-emerald-700/50 hover:text-emerald-300 group-hover/msg:opacity-100"
+                          title={t("chat.copy")}
+                        >
+                          {copiedId === msg.id ? (
+                            <svg className="h-3.5 w-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
                       {msg.sources && msg.sources.length > 0 && typingId !== msg.id && (
                         <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-700/50 pt-2">
                           <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
@@ -503,7 +563,7 @@ export default function Chat() {
                           ))}
                         </div>
                       )}
-                    </>
+                    </div>
                   ) : (
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
                   )}
@@ -541,16 +601,24 @@ export default function Chat() {
             placeholder={t("chat.placeholder")}
             disabled={loading}
             rows={1}
-            className="min-h-[48px] flex-1 resize-none rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-4 py-3 text-sm text-white outline-none backdrop-blur-sm transition placeholder:text-slate-600 focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)]"
+            className="min-h-[48px] flex-1 resize-none rounded-[6px] border border-emerald-900/30 bg-slate-800/60 px-4 py-3 text-sm text-white outline-none backdrop-blur-sm transition placeholder:text-slate-600 focus:border-emerald-500 focus:shadow-[0_0_12px_rgba(34,197,94,0.12)] disabled:opacity-60"
           />
-          <Button
-            onClick={handleSend}
-            loading={loading}
-            disabled={!input.trim()}
-            className="!h-auto !px-6 !py-3"
-          >
-            {t("chat.send")}
-          </Button>
+          {loading ? (
+            <button
+              onClick={handleStop}
+              className="rounded-[6px] border border-red-500/40 bg-red-500/10 px-6 py-3 text-sm font-medium text-red-300 backdrop-blur-sm transition-all duration-200 hover:bg-red-500/20 hover:border-red-400/60"
+            >
+              {t("chat.stop")}
+            </button>
+          ) : (
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim()}
+              className="!h-auto !px-6 !py-3"
+            >
+              {t("chat.send")}
+            </Button>
+          )}
         </div>
       </div>
     </div>
